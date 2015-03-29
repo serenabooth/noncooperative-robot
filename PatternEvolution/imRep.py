@@ -1,0 +1,5 @@
+import mahotas as mh
+
+serpic = mh.imread('serena_prof_1.JPG') 
+
+print(serpic.shape)

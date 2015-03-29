@@ -1,0 +1,78 @@
+\documentclass[11pt,letter]{article}
+\usepackage[margin=1in]{geometry}
+
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+\usepackage{graphicx}
+\usepackage{hyperref}
+%\usepackage{listings}
+\usepackage{color}
+\usepackage{tabulary}
+
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+%
+%\lstset{frame=tb,
+%  language=Java,
+%  aboveskip=3mm,
+%  belowskip=3mm,
+%  showstringspaces=false,
+%  columns=flexible,
+%  basicstyle={\small\ttfamily},
+%  numbers=none,
+%  numberstyle=\tiny\color{gray},
+%  keywordstyle=\color{blue},
+%  commentstyle=\color{dkgreen},
+%  stringstyle=\color{mauve},
+%  breaklines=true,
+%  breakatwhitespace=true
+%  tabsize=3
+%}
+
+\begin{document}
+
+
+
+\title{Evolving a Non-Cooperative Robot: Designing Camouflage from Optic Flow Algorithms}
+
+\author{Serena Booth, Jacob Peters, Jonathan Bobrow}
+
+\date{March 31st, 2015}
+ 
+\maketitle 
+ 
+\section{Project Description}
+We plan to evolve a form of new-age camouflage to disguise motion from optical flow algorithms. 
+
+Visual deception has long been an area of interest for a multitude of reasons, including but not limited to applications of privacy, protection, and fun. Modern day surveillance suggests that privacy is a limited resource and biological systems have evolved unique and robust visual deception techniques. Most of the research and experimentation in this form of crypsis has dealt with static objects and human perception, with the ideal being an invisible cloak (much in the vain of Frodo's); our project, too, will explore solutions for static patterns. However, we aim to conceal motion from optic flow cameras rather than human perception. Because we see examples of counterintuitive camouflage patterns in nature (e.g. a zebra's stripes), we use an evolutionary approach to design static camouflage. 
+
+The question of sensor and algorithm deception has many potential applications. We imagine our system being used to constrain a robot’s area of motion, using a mechanism similar to that of a \href{http://upload.wikimedia.org/wikipedia/commons/6/6b/Lone_Pine,_CA_Virtual_Cattle_Guard.jpg}{virtual cattle guard}. We aim to provide evidence of optical flow being a flawed system for use in traffic navigation by autonomous vehicles. Lastly, we know insects to use optical flow to compute information about flight altitude, amongst other navigation computations, and so we expect our project to equip us with a method of exploiting insect behavior. One example of this may be to design a picnic table which deters insects through a pattern which disrupts optical flow computation.
+
+\section{Related Prior Work} 
+
+\section{Plan of Execution}
+
+\begin{table}[h]
+\begin{tabular}{|p{0.1\textwidth} | p{0.9\textwidth}|}
+\hline
+	\textbf{Date} & \textbf{Goals} \\
+\hline
+Tue, 3/31 & \begin{itemize} \item Project Proposal hand in                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       \end{itemize} \\
+\hline
+Sat, 4/11 & \begin{itemize} \item Prototype of camouflage pattern generation through evolutionary algorithm verified against a fitness function using optic flow calculations. \item Construct scenarios which we can hand-design; aim to evolve expected results. \item Full frame pattern to mitigate concerns with regard to edge detection in optic flow computation. Run computation of camouflage pattern on these scenarios. \item Create GUI for result verification. \item Authors should be comfortable with all tools to be used in project: DEAP evolutionary algorithm package, OpenCV for optic flow calculation and image manipulation. \item Serena lead on using DEAP, Jonathan lead on using OpenCV. Jacob participates in both, preps for hardware testing. \item Following weeks assume success criterion. \end{itemize} \\ \hline
+Sat, 4/25 &\begin{itemize} \item Introduce the dilemma of edge detection: instead of having our pattern work only when full-frame, hope to generalize to (a) random backgrounds or (b) selected real-world applicable backgrounds e.g. desert sand, traffic camera. \item Run simultaneous computations using AWS or SEAS computing cluster for a variety of scenarios to test the robustness of camouflage pattern generation. \item Serena and Jonathan break up cases, iterations, and work on this. \item Assuming success criterion, set up a physical testing station using a webcam in place of a camera simulation. \item Test for robustness against aliasing and motion blur. \item Jacob lead on hardware testing.  \item Prepare class presentation of results so far.       \end{itemize}                                                  \\ \hline
+Wed, 5/6  & \begin{itemize} \item Prepare final results, write final paper.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           \end{itemize}  \\ \hline
+\end{tabular}
+\end{table}
+
+\section{One sentence summary} 
+
+Using a genetic algorithm, we will evolve a form of new-age camouflage which disguises motion as computed by current optic flow algorithms. 
+
+\thebibliography{}
+
+\end{document}
