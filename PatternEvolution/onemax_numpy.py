@@ -31,9 +31,11 @@ toolbox.register("attr_bool", random.randint, 0, 1)
 toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_bool, n=100)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
+# SERENA: evalPattern should compute invoke OpenCV optic flow call; should be difference between real motion and calculated OF? 
 def evalOneMax(individual):
     return sum(individual),
 
+# SERENA: as we use numpy.ndarray representation, this should work in a similar way for cxTwoPatterns
 def cxTwoPointCopy(ind1, ind2):
     """Execute a two points crossover with copy on the input individuals. The
     copy is required because the slicing in numpy returns a view of the data,
