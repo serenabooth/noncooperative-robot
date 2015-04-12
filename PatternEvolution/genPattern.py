@@ -15,7 +15,7 @@
 
 import random
 
-import numpy as np
+import numpy
 
 from deap import algorithms
 from deap import base
@@ -24,14 +24,14 @@ from deap import tools
 from _functools import partial
 
 def genRandomImage():
-    im_rep = np.zeros((NUM_PIXELS,NUM_PIXELS,3), int)
+    im_rep = numpy.zeros((NUM_PIXELS,NUM_PIXELS,3), int)
 
     i = 0 
     while (i < 0.5 * NUM_PIXELS * NUM_PIXELS):
         x = random.randint(0,NUM_PIXELS -1)
         y = random.randint(0,NUM_PIXELS -1)
         if (im_rep[x][y][0] == 0):
-            im_rep[x][y] = np.array([1,1,1])
+            im_rep[x][y] = numpy.array([1,1,1])
             i = i + 1
 
     return im_rep
@@ -46,28 +46,35 @@ def gen_one_random_pixel():
     return tuple([random.randint(0, NUM_PIXELS - 1), random.randint(0, NUM_PIXELS - 1), color])
 
 creator.create("FitnessMax", base.Fitness, weights=(1.0,))
-creator.create("Individual", np.ndarray, fitness=creator.FitnessMax)
+creator.create("Individual", numpy.ndarray, fitness=creator.FitnessMax)
 
 toolbox = base.Toolbox()
 
-toolbox.register("attr_bool", gen_one_random_pixel)
+# TODO: ERROR WHEN USING THE gen_one_random_pixel approach! 
+toolbox.register("attr_bool", random.randint, 0, 1)
 toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_bool, n=100)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
 def expected(individual):
-    return 1
-
-def calculated(individual):
     return 0
 
+def calculated(individual):
+    return 1
+
 # SERENA: evalPattern should compute invoke OpenCV optic flow call; should be difference between real motion and calculated OF? Should penalize (badly) for all single color image. We're maximizing the difference between the calculated movement and computed OF diff. 
-def evalOneMax(individual):
+def evalMax(individual):
     newPIC = PIC
     for tri in individual:
-        print tri
-        newPIC[tri[0], tri[1]] = tri[2]
-    return expected(newPIC) - calculated(newPIC), 
+        newPIC[tri[0]][tri[1]] = numpy.array([tri[2], tri[2], tri[2]])
+    return (expected(newPIC) - calculated(newPIC)),
     #return individual,
+
+
+def evalOneMax(individual):
+    return sum(individual),
+
+#def evalOneMax(individual):
+#    return sum(individual),
 
 # SERENA: as we use numpy.ndarray representation, this should work in a similar way for cxTwoPatterns
 def cxTwoPointCopy(ind1, ind2):
@@ -99,16 +106,15 @@ def main():
     # equality element wise, which raises an exception in the if similar()
     # check of the hall of fame. Using a different equality function like
     # numpy.array_equal or numpy.allclose solve this issue.
-    hof = tools.HallOfFame(1, similar=np.array_equal)
+    hof = tools.HallOfFame(1, similar=numpy.allclose)
     
     stats = tools.Statistics(lambda ind: ind.fitness.values)
-    stats.register("avg", np.mean)
-    stats.register("std", np.std)
-    stats.register("min", np.min)
-    stats.register("max", np.max)
+    stats.register("avg", numpy.mean)
+    stats.register("std", numpy.std)
+    stats.register("min", numpy.min)
+    stats.register("max", numpy.max)
     
-    algorithms.eaSimple(pop, toolbox, cxpb=0.5, mutpb=0.2, ngen=40, stats=stats,
-                        halloffame=hof)
+    algorithms.eaSimple(pop, toolbox, cxpb=0.5, mutpb=0.2, ngen=40, stats=stats, halloffame=hof)
 
     return pop, stats, hof
 
