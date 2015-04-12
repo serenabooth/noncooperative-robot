@@ -54,11 +54,19 @@ toolbox.register("attr_bool", gen_one_random_pixel)
 toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_bool, n=100)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
+def expected(individual):
+    return 1
+
+def calculated(individual):
+    return 0
+
 # SERENA: evalPattern should compute invoke OpenCV optic flow call; should be difference between real motion and calculated OF? Should penalize (badly) for all single color image. We're maximizing the difference between the calculated movement and computed OF diff. 
-def evalOneMax(individual, pixles_to_add):
-    for tri in pixles_to_add:
-        individual[tri[0], tri[1]] = tri[2]
-    return 100, 
+def evalOneMax(individual):
+    newPIC = PIC
+    for tri in individual:
+        print tri
+        newPIC[tri[0], tri[1]] = tri[2]
+    return expected(newPIC) - calculated(newPIC), 
     #return individual,
 
 # SERENA: as we use numpy.ndarray representation, this should work in a similar way for cxTwoPatterns
@@ -77,7 +85,7 @@ def cxTwoPointCopy(ind1, ind2):
     return ind1, ind2
     
     
-toolbox.register("evaluate", partial(evalOneMax, PIC))
+toolbox.register("evaluate", evalOneMax)
 toolbox.register("mate", cxTwoPointCopy)
 toolbox.register("mutate", tools.mutFlipBit, indpb=0.05)
 toolbox.register("select", tools.selTournament, tournsize=3)
