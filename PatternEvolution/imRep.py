@@ -15,6 +15,7 @@ print(serpic[0].shape)
 #imshow(serpic)
 #show()
 
+# REPRESENTATION: 2D array w/ 3 integer pixel array elements 
 for i in range(0,2073):
 	for j in range(0,2073):
 		serpic[i][j] = ['0', '0', '0']
