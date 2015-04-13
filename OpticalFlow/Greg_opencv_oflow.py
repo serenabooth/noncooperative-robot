@@ -32,6 +32,14 @@ if __name__ == '__main__':
 
   while True:
       ret, img = cam.read()
+
+      # print img.shape[0]
+      # print img.shape[1]
+      # print img.shape[2]
+      print img[0][0][0]
+      print img[0][0][1]
+      print img[0][0][2]
+
       # convert to grayscale and resize down by half
       small = cv2.resize(img, (0,0), fx=scale, fy=scale) 
       gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)

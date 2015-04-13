@@ -1,4 +1,4 @@
-import mahotas as mh
+# import mahotas as mh
 from pylab import imshow, show
 import numpy as np
 import random 
