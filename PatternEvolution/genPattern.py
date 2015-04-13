@@ -15,8 +15,10 @@
 
 import random
 import numpy
+import cv2
+import time
 
-from pylab import imshow, show
+from pylab import imshow, show, ion
 
 from deap import algorithms
 from deap import base
@@ -24,29 +26,41 @@ from deap import creator
 from deap import tools
 from _functools import partial
 
-def genRandomImage():
-    im_rep = numpy.zeros((NUM_PIXELS,NUM_PIXELS,3), int)
+#ion()
+SWATCH_NUM_PIXELS_WIDTH = 100 
+SWATCH_NUM_PIXELS_HEIGHT = 100
+POPULATION = 40
+NGEN = 10
+BLACK = 0
+WHITE = 255
+background_width = 320
+background_height = 240
+
+# Generate a random image represented as a (NUM_PIXELS_HEIGHT, NUM_PIXELS_WIDTH, 3) ndarray. 
+# 50% black, 50% white
+def genRandomImage(pixels_height, pixels_width):
+    im_rep = numpy.zeros((pixels_height,pixels_width,3), numpy.uint8)
 
     i = 0 
-    while (i < 0.5 * NUM_PIXELS * NUM_PIXELS):
-        x = random.randint(0,NUM_PIXELS -1)
-        y = random.randint(0,NUM_PIXELS -1)
-        if (im_rep[x][y][0] == 0):
-            im_rep[x][y] = numpy.array([1,1,1])
+    while (i < 0.5 * pixels_height * pixels_width):
+        x = random.randint(0,pixels_height -1)
+        y = random.randint(0,pixels_width -1)
+        if (im_rep[x][y][0] == BLACK):
+            im_rep[x][y] = numpy.array([WHITE,WHITE,WHITE])
             i = i + 1
 
     return im_rep
 
-NUM_PIXELS = 100 
-POPULATION = 40
-NGEN = 10
-PIC = genRandomImage()
+PIC = genRandomImage(SWATCH_NUM_PIXELS_HEIGHT, SWATCH_NUM_PIXELS_WIDTH)
+background = numpy.zeros((background_height,background_width,3), numpy.uint8)
 
 def gen_one_random_pixel(): 
     color = random.randint(0,1) # returns 0 or 1 for b or w 
-    return tuple([random.randint(0, NUM_PIXELS - 1), random.randint(0, NUM_PIXELS - 1), color])
+    if (color == 1):
+        color = WHITE
+    return tuple([random.randint(0, SWATCH_NUM_PIXELS_HEIGHT - 1), random.randint(0, SWATCH_NUM_PIXELS_WIDTH - 1), color])
 
-creator.create("FitnessMax", base.Fitness, weights=(1.0,))
+creator.create("FitnessMax", base.Fitness, weights=(-1.0,))
 creator.create("Individual", numpy.ndarray, fitness=creator.FitnessMax)
 
 toolbox = base.Toolbox()
@@ -56,45 +70,44 @@ toolbox.register("attr", gen_one_random_pixel)
 toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr, n=100)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
-def expected(individual):
-    return 0
-
 def calculated(individual):
-    return 1
+    swatch = numpy.empty((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
+    for i in range(0,SWATCH_NUM_PIXELS_HEIGHT):
+        for j in range(0,SWATCH_NUM_PIXELS_WIDTH):
+            swatch[i][j] = individual[i][j]
+
+    k = 0
+    prev_im_rep = background.copy()
+    prev_im_rep[70:170, k:100+k] = swatch
+
+    k = k + 10
+    im_rep_next = background.copy()
+    im_rep_next[70:170, k:100+k] = swatch 
+
+    # make CV happy with grayscale images for previous and next frames
+    prv = cv2.cvtColor(prev_im_rep, cv2.COLOR_BGR2GRAY)
+    nxt = cv2.cvtColor(im_rep_next, cv2.COLOR_BGR2GRAY) 
+
+    # calculate optical flow
+    flow = cv2.calcOpticalFlowFarneback(prv, nxt, 0.5, 4, 8, 2, 7, 1.5, cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
+
+    # sum our optical flow and then get averages for x and y direction
+    total = cv2.sumElems(flow)
+    xFlowAve = total[1] / (background.shape[0]*background.shape[1])
+    yFlowAve = total[0] / (background.shape[0]*background.shape[1])
+
+    return xFlowAve
 
 # SERENA: evalPattern should compute invoke OpenCV optic flow call; should be difference between real motion and calculated OF? Should penalize (badly) for all single color image. We're maximizing the difference between the calculated movement and computed OF diff. 
-def evalMax(individual, triangles):
-    for tri in triangles:
+def evalMax(individual, pixels):
+    for tri in pixels:
         individual[tri[0]][tri[1]] = numpy.array([tri[2], tri[2], tri[2]])
     imshow(individual)
     show()
-    return (expected(individual) - calculated(individual)),
-    #return individual,
+    #return (expected(individual) - calculated(individual)),
+    return calculated(individual),
 
-
-def evalOneMax(individual):
-    print individual
-    return sum(individual),
-
-#def evalOneMax(individual):
-#    return sum(individual),
-
-# SERENA: as we use numpy.ndarray representation, this should work in a similar way for cxTwoPatterns
 def cxTwoPointCopy(ind1, ind2):
-    """Execute a two points crossover with copy on the input individuals. The
-    copy is required because the slicing in numpy returns a view of the data,
-    which leads to a self overwritting in the swap operation. It prevents
-    ::
-    
-        >>> import numpy
-        >>> a = numpy.array((1,2,3,4))
-        >>> b = numpy.array((5.6.7.8))
-        >>> a[1:3], b[1:3] = b[1:3], a[1:3]
-        >>> print(a)
-        [1 6 7 4]
-        >>> print(b)
-        [5 6 7 8]
-    """
     size = len(ind1)
     cxpoint1 = random.randint(1, size)
     cxpoint2 = random.randint(1, size - 1)
@@ -111,13 +124,13 @@ def cxTwoPointCopy(ind1, ind2):
     
 toolbox.register("evaluate", partial(evalMax, PIC))
 toolbox.register("mate", cxTwoPointCopy)
-toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.05)
+toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.5)
 toolbox.register("select", tools.selTournament, tournsize=3)
 
 def main():
-    #random.seed(64)
+    random.seed(64)
     
-    pop = toolbox.population(n=1)
+    pop = toolbox.population(n=10)
     
     # Numpy equality function (operators.eq) between two arrays returns the
     # equality element wise, which raises an exception in the if similar()
@@ -127,11 +140,11 @@ def main():
     
     stats = tools.Statistics(lambda ind: ind.fitness.values)
     stats.register("avg", numpy.mean)
-    #stats.register("std", numpy.std)
+    stats.register("std", numpy.std)
     stats.register("min", numpy.min)
     stats.register("max", numpy.max)
     
-    algorithms.eaSimple(pop, toolbox, cxpb=0.5, mutpb=0.2, ngen=40, stats=stats, halloffame=hof)
+    algorithms.eaSimple(pop, toolbox, cxpb=0.5, mutpb=0.2, ngen=10, stats=stats, halloffame=hof)
 
     return pop, stats, hof
 
