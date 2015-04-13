@@ -14,8 +14,9 @@
 #    License along with DEAP. If not, see <http://www.gnu.org/licenses/>.
 
 import random
-
 import numpy
+
+from pylab import imshow, show
 
 from deap import algorithms
 from deap import base
@@ -38,7 +39,7 @@ def genRandomImage():
 
 NUM_PIXELS = 100 
 POPULATION = 40
-NGEN = 100
+NGEN = 10
 PIC = genRandomImage()
 
 def gen_one_random_pixel(): 
@@ -51,8 +52,8 @@ creator.create("Individual", numpy.ndarray, fitness=creator.FitnessMax)
 toolbox = base.Toolbox()
 
 # TODO: ERROR WHEN USING THE gen_one_random_pixel approach! 
-toolbox.register("attr_bool", random.randint, 0, 1)
-toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_bool, n=100)
+toolbox.register("attr", gen_one_random_pixel)
+toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr, n=100)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
 def expected(individual):
@@ -62,15 +63,17 @@ def calculated(individual):
     return 1
 
 # SERENA: evalPattern should compute invoke OpenCV optic flow call; should be difference between real motion and calculated OF? Should penalize (badly) for all single color image. We're maximizing the difference between the calculated movement and computed OF diff. 
-def evalMax(individual):
-    newPIC = PIC
-    for tri in individual:
-        newPIC[tri[0]][tri[1]] = numpy.array([tri[2], tri[2], tri[2]])
-    return (expected(newPIC) - calculated(newPIC)),
+def evalMax(individual, triangles):
+    for tri in triangles:
+        individual[tri[0]][tri[1]] = numpy.array([tri[2], tri[2], tri[2]])
+    imshow(individual)
+    show()
+    return (expected(individual) - calculated(individual)),
     #return individual,
 
 
 def evalOneMax(individual):
+    print individual
     return sum(individual),
 
 #def evalOneMax(individual):
@@ -78,6 +81,20 @@ def evalOneMax(individual):
 
 # SERENA: as we use numpy.ndarray representation, this should work in a similar way for cxTwoPatterns
 def cxTwoPointCopy(ind1, ind2):
+    """Execute a two points crossover with copy on the input individuals. The
+    copy is required because the slicing in numpy returns a view of the data,
+    which leads to a self overwritting in the swap operation. It prevents
+    ::
+    
+        >>> import numpy
+        >>> a = numpy.array((1,2,3,4))
+        >>> b = numpy.array((5.6.7.8))
+        >>> a[1:3], b[1:3] = b[1:3], a[1:3]
+        >>> print(a)
+        [1 6 7 4]
+        >>> print(b)
+        [5 6 7 8]
+    """
     size = len(ind1)
     cxpoint1 = random.randint(1, size)
     cxpoint2 = random.randint(1, size - 1)
@@ -92,25 +109,25 @@ def cxTwoPointCopy(ind1, ind2):
     return ind1, ind2
     
     
-toolbox.register("evaluate", evalOneMax)
+toolbox.register("evaluate", partial(evalMax, PIC))
 toolbox.register("mate", cxTwoPointCopy)
-toolbox.register("mutate", tools.mutFlipBit, indpb=0.05)
+toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.05)
 toolbox.register("select", tools.selTournament, tournsize=3)
 
 def main():
     #random.seed(64)
     
-    pop = toolbox.population(n=300)
+    pop = toolbox.population(n=1)
     
     # Numpy equality function (operators.eq) between two arrays returns the
     # equality element wise, which raises an exception in the if similar()
     # check of the hall of fame. Using a different equality function like
     # numpy.array_equal or numpy.allclose solve this issue.
-    hof = tools.HallOfFame(1, similar=numpy.allclose)
+    hof = tools.HallOfFame(1, similar=numpy.array_equal)
     
     stats = tools.Statistics(lambda ind: ind.fitness.values)
     stats.register("avg", numpy.mean)
-    stats.register("std", numpy.std)
+    #stats.register("std", numpy.std)
     stats.register("min", numpy.min)
     stats.register("max", numpy.max)
     
