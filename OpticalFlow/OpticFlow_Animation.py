@@ -23,6 +23,14 @@ for i in range(0,swatch_height):
 	for j in range(0,swatch_width):
 		swatch[i][j] = (255,255,255)
 
+# create spotted swatch
+# for i in range(0,swatch_height):
+# 	for j in range(0,swatch_width):
+# 		if(i%5 == 0 and j%5 == 0):
+# 			swatch[i][j] = (255,255,255)
+# 		else:
+# 			swatch[i][j] = (0,0,0)
+
 # create black background
 for i in range(0,background_height):
 	for j in range(0,background_width):
@@ -38,7 +46,8 @@ while True:
 	im_rep = background.copy()
 
 	# replace a portion of the array with the swatch
-	im_rep[70:170, i:100+i] = swatch
+	y_pos = 70
+	im_rep[y_pos:y_pos+swatch.shape[1], i:swatch.shape[0]+i] = swatch
 	
 	# move the image i pixels to the right
 	i = i + 1
@@ -69,4 +78,21 @@ while True:
 		break
 
 cv2.destroyAllWindows()
+
+# this function returns the average value of the optical flow
+def getAverageOpticalFlow(prev_frame, next_frame):
+	# calculate optical flow
+ 	flow = cv2.calcOpticalFlowFarneback(prv, nxt, 0.5, 4, 8, 2, 7, 1.5, cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
+
+ 	# sum our optical flow and then get averages for x and y direction
+	total = cv2.sumElems(flow)
+	xFlowAvg = total[1] / (im_rep.shape[0]*im_rep.shape[1])
+	yFlowAvg = total[0] / (im_rep.shape[0]*im_rep.shape[1])
+
+	flow_vector = [xFlowAvg, yFlowAvg]
+	return flow_vector
+
+#
+def getTotalOpticalFlowOverAnimation():
+	print "not implemented yet"
 
