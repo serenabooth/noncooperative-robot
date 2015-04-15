@@ -36,24 +36,26 @@ WHITE = 255
 background_width = 320
 background_height = 240
 
-# Generate a random image represented as a (NUM_PIXELS_HEIGHT, NUM_PIXELS_WIDTH, 3) ndarray. 
+# Generate a random image represented as a (pixels_height, pixels_width, 3) ndarray. 
 # 50% black, 50% white
 def genRandomImage(pixels_height, pixels_width):
     im_rep = numpy.zeros((pixels_height,pixels_width,3), numpy.uint8)
 
     i = 0 
     while (i < 0.5 * pixels_height * pixels_width):
-        x = random.randint(0,pixels_height -1)
-        y = random.randint(0,pixels_width -1)
+        x = random.randint(0, pixels_height - 1)
+        y = random.randint(0, pixels_width - 1)
         if (im_rep[x][y][0] == BLACK):
             im_rep[x][y] = numpy.array([WHITE,WHITE,WHITE])
             i = i + 1
 
     return im_rep
 
+# PIC is the 100x100 swatch, background is the 320x240 image
 PIC = genRandomImage(SWATCH_NUM_PIXELS_HEIGHT, SWATCH_NUM_PIXELS_WIDTH)
 background = numpy.zeros((background_height,background_width,3), numpy.uint8)
 
+# insert randomness through pixel generation
 def gen_one_random_pixel(): 
     color = random.randint(0,1) # returns 0 or 1 for b or w 
     if (color == 1):
@@ -65,11 +67,11 @@ creator.create("Individual", numpy.ndarray, fitness=creator.FitnessMax)
 
 toolbox = base.Toolbox()
 
-# TODO: ERROR WHEN USING THE gen_one_random_pixel approach! 
 toolbox.register("attr", gen_one_random_pixel)
 toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr, n=100)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
+# Compute swatch from individual. Place swatch on background. Move translationally. Compute OF. 
 def calculated(individual):
     swatch = numpy.empty((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
     for i in range(0,SWATCH_NUM_PIXELS_HEIGHT):
@@ -98,7 +100,7 @@ def calculated(individual):
 
     return xFlowAve
 
-# SERENA: evalPattern should compute invoke OpenCV optic flow call; should be difference between real motion and calculated OF? Should penalize (badly) for all single color image. We're maximizing the difference between the calculated movement and computed OF diff. 
+# Returns the longitudinal OF over the number of pixels moved. This fitness is minimized
 def evalMax(individual, pixels):
     for tri in pixels:
         individual[tri[0]][tri[1]] = numpy.array([tri[2], tri[2], tri[2]])
@@ -107,6 +109,7 @@ def evalMax(individual, pixels):
     #return (expected(individual) - calculated(individual)),
     return calculated(individual),
 
+# cross over function -- provided by DEAP
 def cxTwoPointCopy(ind1, ind2):
     size = len(ind1)
     cxpoint1 = random.randint(1, size)
