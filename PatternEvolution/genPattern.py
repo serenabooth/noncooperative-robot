@@ -95,8 +95,8 @@ def calculated(individual):
 
     # sum our optical flow and then get averages for x and y direction
     total = cv2.sumElems(flow)
-    xFlowAve = total[1] / (background.shape[0]*background.shape[1])
-    yFlowAve = total[0] / (background.shape[0]*background.shape[1])
+    xFlowAve = total[0] / (background.shape[0]*background.shape[1])
+    yFlowAve = total[1] / (background.shape[0]*background.shape[1])
 
     return xFlowAve
 
