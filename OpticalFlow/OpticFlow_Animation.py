@@ -10,6 +10,8 @@ swatch_height = 100
 background_width = 320
 background_height = 240
 
+midpoint = (int(background_width/2), int(background_height/2))
+
 # create image representation
 im_rep = np.zeros((background_height,background_width,3), np.uint8)
 prev_im_rep = im_rep
@@ -19,17 +21,17 @@ background = np.zeros((background_height,background_width,3), np.uint8)
 
 # create white swatch
 swatch = np.empty((swatch_width,swatch_width,3), np.uint8)
-for i in range(0,swatch_height):
-	for j in range(0,swatch_width):
-		swatch[i][j] = (255,255,255)
-
-# create spotted swatch
 # for i in range(0,swatch_height):
 # 	for j in range(0,swatch_width):
-# 		if(i%5 == 0 and j%5 == 0):
-# 			swatch[i][j] = (255,255,255)
-# 		else:
-# 			swatch[i][j] = (0,0,0)
+# 		swatch[i][j] = (255,255,255)
+
+# # create spotted swatch
+for i in range(0,swatch_height):
+	for j in range(0,swatch_width):
+		if(i%5 == 0 and j%5 == 0):
+			swatch[i][j] = (255,255,255)
+		else:
+			swatch[i][j] = (0,0,0)
 
 # create black background
 for i in range(0,background_height):
@@ -61,11 +63,17 @@ while True:
 
  	# sum our optical flow and then get averages for x and y direction
 	total = cv2.sumElems(flow)
-	xFlowAve = total[1] / (im_rep.shape[0]*im_rep.shape[1])
-	yFlowAve = total[0] / (im_rep.shape[0]*im_rep.shape[1])
+	xFlowAve = total[0] / (im_rep.shape[0]*im_rep.shape[1])
+	yFlowAve = total[1] / (im_rep.shape[0]*im_rep.shape[1])
 
 	print "ave flow: {},{}".format(xFlowAve,yFlowAve)
 
+	flowscale = 100
+	flowpoint = (midpoint[0] + int(xFlowAve*flowscale), midpoint[1] + int(yFlowAve*flowscale))
+
+	# from, to, color (bgra), weight
+	cv2.line(im_rep, midpoint, flowpoint, (0,255,0),2)
+	
 	# draw our sweet animation
 	cv2.imshow('animation', im_rep)
 
