@@ -103,8 +103,8 @@ def calculatedTranslationalAvg(individual):
 
         # sum our optical flow and then get averages for x and y direction
         total = cv2.sumElems(flow)
-        xFlowTotal += total[1] / (background.shape[0]*background.shape[1])
-        yFlowTotal += total[0] / (background.shape[0]*background.shape[1])
+        xFlowTotal += total[0] / (background.shape[0]*background.shape[1])
+        yFlowTotal += total[1] / (background.shape[0]*background.shape[1])
 
     return (xFlowTotal/k, yFlowTotal/k)
 
