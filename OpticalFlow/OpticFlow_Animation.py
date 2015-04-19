@@ -94,8 +94,8 @@ def getAverageOpticalFlow(prev_frame, next_frame):
 
  	# sum our optical flow and then get averages for x and y direction
 	total = cv2.sumElems(flow)
-	xFlowAvg = total[1] / (im_rep.shape[0]*im_rep.shape[1])
-	yFlowAvg = total[0] / (im_rep.shape[0]*im_rep.shape[1])
+	xFlowAvg = total[0] / (im_rep.shape[0]*im_rep.shape[1])
+	yFlowAvg = total[1] / (im_rep.shape[0]*im_rep.shape[1])
 
 	flow_vector = [xFlowAvg, yFlowAvg]
 	return flow_vector
