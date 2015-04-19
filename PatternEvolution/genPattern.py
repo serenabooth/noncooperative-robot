@@ -35,6 +35,7 @@ BLACK = 0
 WHITE = 255
 background_width = 320
 background_height = 240
+DELTA = 1
 
 # Generate a random image represented as a (pixels_height, pixels_width, 3) ndarray. 
 # 50% black, 50% white
@@ -52,17 +53,21 @@ def genRandomImage(pixels_height, pixels_width):
     return im_rep
 
 # PIC is the 100x100 swatch, background is the 320x240 image
-PIC = genRandomImage(SWATCH_NUM_PIXELS_HEIGHT, SWATCH_NUM_PIXELS_WIDTH)
+#PIC = genRandomImage(SWATCH_NUM_PIXELS_HEIGHT, SWATCH_NUM_PIXELS_WIDTH)
+PIC = numpy.zeros((SWATCH_NUM_PIXELS_HEIGHT, SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
 background = numpy.zeros((background_height,background_width,3), numpy.uint8)
+#background = genRandomImage(background_height, background_width)
 
 # insert randomness through pixel generation
 def gen_one_random_pixel(): 
     color = random.randint(0,1) # returns 0 or 1 for b or w 
+    #color = WHITE
     if (color == 1):
         color = WHITE
-    return tuple([random.randint(0, SWATCH_NUM_PIXELS_HEIGHT - 1), random.randint(0, SWATCH_NUM_PIXELS_WIDTH - 1), color])
+    return tuple([random.randint(0, SWATCH_NUM_PIXELS_HEIGHT - 1), 
+        random.randint(0, SWATCH_NUM_PIXELS_WIDTH - 1), color])
 
-creator.create("FitnessMax", base.Fitness, weights=(-1.0,))
+creator.create("FitnessMax", base.Fitness, weights=(1.0,-1.0,))
 creator.create("Individual", numpy.ndarray, fitness=creator.FitnessMax)
 
 toolbox = base.Toolbox()
@@ -71,6 +76,39 @@ toolbox.register("attr", gen_one_random_pixel)
 toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr, n=100)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
+def calculatedTranslationalAvg(individual):
+    swatch = numpy.empty((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
+    for i in range(0,SWATCH_NUM_PIXELS_HEIGHT):
+        for j in range(0,SWATCH_NUM_PIXELS_WIDTH):
+            swatch[i][j] = individual[i][j]
+
+    xFlowTotal = 0 
+    yFlowTotal = 0    
+
+    #for k in range(0, background_width - SWATCH_NUM_PIXELS_WIDTH):
+    for k in range(50, 53):    
+        prev_im_rep = background.copy()
+        prev_im_rep[70:170, k:100+k] = swatch
+
+        k = k + DELTA
+        im_rep_next = background.copy()
+        im_rep_next[70:170, k:100+k] = swatch 
+
+        # make CV happy with grayscale images for previous and next frames
+        prv = cv2.cvtColor(prev_im_rep, cv2.COLOR_BGR2GRAY)
+        nxt = cv2.cvtColor(im_rep_next, cv2.COLOR_BGR2GRAY) 
+
+        # calculate optical flow
+        flow = cv2.calcOpticalFlowFarneback(prv, nxt, 0.5, 4, 8, 2, 7, 1.5, cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
+
+        # sum our optical flow and then get averages for x and y direction
+        total = cv2.sumElems(flow)
+        xFlowTotal += total[0] / (background.shape[0]*background.shape[1])
+        yFlowTotal += total[1] / (background.shape[0]*background.shape[1])
+
+    return (xFlowTotal/k, yFlowTotal/k)
+
+
 # Compute swatch from individual. Place swatch on background. Move translationally. Compute OF. 
 def calculated(individual):
     swatch = numpy.empty((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
@@ -78,11 +116,11 @@ def calculated(individual):
         for j in range(0,SWATCH_NUM_PIXELS_WIDTH):
             swatch[i][j] = individual[i][j]
 
-    k = 0
+    k = 50
     prev_im_rep = background.copy()
     prev_im_rep[70:170, k:100+k] = swatch
 
-    k = k + 10
+    k = k + DELTA
     im_rep_next = background.copy()
     im_rep_next[70:170, k:100+k] = swatch 
 
@@ -98,19 +136,19 @@ def calculated(individual):
     xFlowAve = total[0] / (background.shape[0]*background.shape[1])
     yFlowAve = total[1] / (background.shape[0]*background.shape[1])
 
-    return xFlowAve
+    return xFlowAve - delta
 
-# Returns the longitudinal OF over the number of pixels moved. This fitness is minimized
+# Returns the longitudinal OF, vertical OF, for fitness calculations
 def evalMax(individual, pixels):
     for tri in pixels:
         individual[tri[0]][tri[1]] = numpy.array([tri[2], tri[2], tri[2]])
-    imshow(individual)
-    show()
-    #return (expected(individual) - calculated(individual)),
-    return calculated(individual),
+    #imshow(individual)
+    #show()
+    (h,v) = calculatedTranslationalAvg(individual)
+    return h,v,
 
 # cross over function -- provided by DEAP
-def cxTwoPointCopy(ind1, ind2):
+def cx(ind1, ind2):
     size = len(ind1)
     cxpoint1 = random.randint(1, size)
     cxpoint2 = random.randint(1, size - 1)
@@ -126,14 +164,17 @@ def cxTwoPointCopy(ind1, ind2):
     
     
 toolbox.register("evaluate", partial(evalMax, PIC))
-toolbox.register("mate", cxTwoPointCopy)
-toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.5)
-toolbox.register("select", tools.selTournament, tournsize=3)
+toolbox.register("mate", cx)
+toolbox.register("mutate", tools.mutGaussian, mu=0.0, sigma=0.2, indpb=0.3)
+toolbox.register("select", tools.selTournament, tournsize=2)
 
 def main():
     random.seed(64)
+
+    imshow(PIC)
+    show()
     
-    pop = toolbox.population(n=10)
+    pop = toolbox.population(n=50)
     
     # Numpy equality function (operators.eq) between two arrays returns the
     # equality element wise, which raises an exception in the if similar()
@@ -146,10 +187,15 @@ def main():
     stats.register("std", numpy.std)
     stats.register("min", numpy.min)
     stats.register("max", numpy.max)
-    
-    algorithms.eaSimple(pop, toolbox, cxpb=0.5, mutpb=0.2, ngen=10, stats=stats, halloffame=hof)
+    try: 
+        algorithms.eaSimple(pop, toolbox, cxpb=0.5, mutpb=0.2, ngen=100000, stats=stats, halloffame=hof)
+    finally: 
+        for tri in hof[0]:
+            PIC[tri[0]][tri[1]] = numpy.array([tri[2], tri[2], tri[2]])
+        imshow(PIC)
+        show()
 
-    return pop, stats, hof
+    #return pop, stats, hof
 
 if __name__ == "__main__":
     main(); 
