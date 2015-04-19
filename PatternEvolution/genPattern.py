@@ -36,6 +36,7 @@ WHITE = 255
 background_width = 320
 background_height = 240
 DELTA = 1
+POPSIZE = 10
 
 # Generate a random image represented as a (pixels_height, pixels_width, 3) ndarray. 
 # 50% black, 50% white
@@ -59,7 +60,7 @@ background = numpy.zeros((background_height,background_width,3), numpy.uint8)
 #background = genRandomImage(background_height, background_width)
 
 # insert randomness through pixel generation
-def gen_one_random_pixel(): 
+def gen_random_pixels(): 
     color = random.randint(0,1) # returns 0 or 1 for b or w 
     #color = WHITE
     if (color == 1):
@@ -67,16 +68,18 @@ def gen_one_random_pixel():
     return tuple([random.randint(0, SWATCH_NUM_PIXELS_HEIGHT - 1), 
         random.randint(0, SWATCH_NUM_PIXELS_WIDTH - 1), color])
 
-creator.create("FitnessMax", base.Fitness, weights=(1.0,-1.0,))
+creator.create("FitnessMax", base.Fitness, weights=(1.0,))
 creator.create("Individual", numpy.ndarray, fitness=creator.FitnessMax)
 
 toolbox = base.Toolbox()
+history = tools.History()
 
-toolbox.register("attr", gen_one_random_pixel)
+toolbox.register("attr", gen_random_pixels)
 toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr, n=100)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
 def calculatedTranslationalAvg(individual):
+
     swatch = numpy.empty((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
     for i in range(0,SWATCH_NUM_PIXELS_HEIGHT):
         for j in range(0,SWATCH_NUM_PIXELS_WIDTH):
@@ -84,6 +87,9 @@ def calculatedTranslationalAvg(individual):
 
     xFlowTotal = 0 
     yFlowTotal = 0    
+
+    #imshow(swatch)
+    #show()
 
     #for k in range(0, background_width - SWATCH_NUM_PIXELS_WIDTH):
     for k in range(50, 53):    
@@ -106,46 +112,16 @@ def calculatedTranslationalAvg(individual):
         xFlowTotal += total[0] / (background.shape[0]*background.shape[1])
         yFlowTotal += total[1] / (background.shape[0]*background.shape[1])
 
-    return (xFlowTotal/k, yFlowTotal/k)
+    return xFlowTotal/k#, yFlowTotal/k)
 
-
-# Compute swatch from individual. Place swatch on background. Move translationally. Compute OF. 
-def calculated(individual):
-    swatch = numpy.empty((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
-    for i in range(0,SWATCH_NUM_PIXELS_HEIGHT):
-        for j in range(0,SWATCH_NUM_PIXELS_WIDTH):
-            swatch[i][j] = individual[i][j]
-
-    k = 50
-    prev_im_rep = background.copy()
-    prev_im_rep[70:170, k:100+k] = swatch
-
-    k = k + DELTA
-    im_rep_next = background.copy()
-    im_rep_next[70:170, k:100+k] = swatch 
-
-    # make CV happy with grayscale images for previous and next frames
-    prv = cv2.cvtColor(prev_im_rep, cv2.COLOR_BGR2GRAY)
-    nxt = cv2.cvtColor(im_rep_next, cv2.COLOR_BGR2GRAY) 
-
-    # calculate optical flow
-    flow = cv2.calcOpticalFlowFarneback(prv, nxt, 0.5, 4, 8, 2, 7, 1.5, cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
-
-    # sum our optical flow and then get averages for x and y direction
-    total = cv2.sumElems(flow)
-    xFlowAve = total[0] / (background.shape[0]*background.shape[1])
-    yFlowAve = total[1] / (background.shape[0]*background.shape[1])
-
-    return xFlowAve - delta
 
 # Returns the longitudinal OF, vertical OF, for fitness calculations
 def evalMax(individual, pixels):
     for tri in pixels:
         individual[tri[0]][tri[1]] = numpy.array([tri[2], tri[2], tri[2]])
-    #imshow(individual)
-    #show()
-    (h,v) = calculatedTranslationalAvg(individual)
-    return h,v,
+
+    h = calculatedTranslationalAvg(individual)
+    return h,
 
 # cross over function -- provided by DEAP
 def cx(ind1, ind2):
@@ -163,37 +139,54 @@ def cx(ind1, ind2):
     return ind1, ind2
     
     
-toolbox.register("evaluate", partial(evalMax, PIC))
+
+toolbox.register("evaluate", partial(evalMax, PIC.copy()))
 toolbox.register("mate", cx)
 toolbox.register("mutate", tools.mutGaussian, mu=0.0, sigma=0.2, indpb=0.3)
 toolbox.register("select", tools.selTournament, tournsize=2)
+# Decorate the variation operators
+toolbox.decorate("mate", history.decorator)
+toolbox.decorate("mutate", history.decorator)
 
 def main():
     random.seed(64)
 
-    imshow(PIC)
-    show()
+    #imshow(PIC)
+    #show()
     
-    pop = toolbox.population(n=50)
+    pop = toolbox.population(n=POPSIZE)
+    # Create the population and populate the history
+    history.update(pop)
     
     # Numpy equality function (operators.eq) between two arrays returns the
     # equality element wise, which raises an exception in the if similar()
     # check of the hall of fame. Using a different equality function like
     # numpy.array_equal or numpy.allclose solve this issue.
     hof = tools.HallOfFame(1, similar=numpy.array_equal)
-    
+
     stats = tools.Statistics(lambda ind: ind.fitness.values)
     stats.register("avg", numpy.mean)
     stats.register("std", numpy.std)
     stats.register("min", numpy.min)
     stats.register("max", numpy.max)
     try: 
-        algorithms.eaSimple(pop, toolbox, cxpb=0.5, mutpb=0.2, ngen=100000, stats=stats, halloffame=hof)
+        algorithms.eaSimple(pop, toolbox, cxpb=0.5, mutpb=0.2, ngen=100, stats=stats, halloffame=hof)
     finally: 
-        for tri in hof[0]:
-            PIC[tri[0]][tri[1]] = numpy.array([tri[2], tri[2], tri[2]])
-        imshow(PIC)
-        show()
+    #finally: 
+    #    PIC_new = PIC.copy()
+    #    for tri in hof[0]:
+    #        PIC_new[tri[0]][tri[1]] = numpy.array([tri[2], tri[2], tri[2]])
+
+        ts = time.time() 
+
+    for i in range(1, len(history.genealogy_history) + 1):
+        PIC_new = numpy.zeros((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
+
+        for tri in history.genealogy_history[i]:
+            PIC_new[tri[0]][tri[1]] = numpy.array([tri[2], tri[2], tri[2]])
+
+        cv2.imwrite('/home/serena/noncooperative-robot/PatternEvolution/Images/' + 'pic' + str(ts)[0:10] + '_' + str(i) + '.png', PIC_new)
+
 
     #return pop, stats, hof
 
