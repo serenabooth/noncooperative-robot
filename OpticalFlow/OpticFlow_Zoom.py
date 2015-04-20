@@ -112,6 +112,32 @@ def getAverageOpticalFlow(prev_frame, next_frame):
 	flow_vector = [xFlowAvg, yFlowAvg]
 	return flow_vector
 
+# this function splits up images into 9 subimages to determine optical flow on
+# after determining optical flow, of the 9 images, it computes a value of zoom
+# based on the opposing vectors
+def getZoomOpticalFlow(prev_frame, next_frame):
+	
+	# store flow for each frame
+	# frame_flow = [3][3]
+
+	# split into 9 frames
+	for i in range(0,3):
+		for j in range(0,3):
+			left = j*prev_frame.shape[0]/3
+			right = (j+1)*center[0]+prev_frame.shape[0]/2
+			top = i*prev_frame.shape[1]/2
+			bottom = (i+1)prev_frame.shape[1]/2
+
+			sub_prev_frame = prev_frame[left:right, top:bottom]
+			sub_next_frame = next_frame[left:right, top:bottom]
+
+			#check optical flow for subframe
+			getAverageOpticalFlow(sub_prev_frame, sub_next_frame)
+			#store this value
+
+	# look at all values and computer zoom
+	# look at opposites (i.e. top-left, bottom-right)
+
 #
 def getTotalOpticalFlowOverAnimation():
 	print "not implemented yet"
