@@ -74,11 +74,11 @@ def gen_random_pixels():
 creator.create("FitnessMax", base.Fitness, weights=(1.0,))
 creator.create("Individual", numpy.ndarray, fitness=creator.FitnessMax)
 
-toolbox = base.Toolbox()
+toolbox = base.Toolbox() 
 history = tools.History()
 
 toolbox.register("attr", gen_random_pixels)
-toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr, n=100)
+toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr, n=SWATCH_NUM_PIXELS_WIDTH/2* SWATCH_NUM_PIXELS_HEIGHT)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
 def calculatedTranslationalAvg(individual):
@@ -131,11 +131,13 @@ def calculatedTranslationalAvg(individual):
 
 
 # Returns the longitudinal OF, vertical OF, for fitness calculations
-def evalMax(individual, pixels):
-    for tri in pixels:
-        individual[tri[0]][tri[1]] = numpy.array([tri[2], tri[2], tri[2]])
+def evalMax(individual):
 
-    h = calculatedTranslationalAvg(individual)
+    ind = PIC.copy()
+    for tri in individual:
+        ind[tri[0]][tri[1]] = numpy.array([tri[2], tri[2], tri[2]])
+
+    h = calculatedTranslationalAvg(ind)
     return h,
 
 # cross over function -- provided by DEAP
@@ -155,7 +157,7 @@ def cx(ind1, ind2):
     
     
 
-toolbox.register("evaluate", partial(evalMax, PIC))
+toolbox.register("evaluate", evalMax)
 toolbox.register("mate", cx)
 toolbox.register("mutate", tools.mutGaussian, mu=0.0, sigma=0.2, indpb=0.3)
 toolbox.register("select", tools.selTournament, tournsize=3)
@@ -164,7 +166,7 @@ toolbox.decorate("mate", history.decorator)
 toolbox.decorate("mutate", history.decorator)
 
 def main():
-    #random.seed(64)
+    random.seed(64)
 
     #imshow(PIC)
     #show()
@@ -185,7 +187,7 @@ def main():
     stats.register("min", numpy.min)
     stats.register("max", numpy.max)
     try: 
-        algorithms.eaSimple(pop, toolbox, cxpb=0.5, mutpb=0.2, ngen=100, stats=stats, halloffame=hof)
+        algorithms.eaSimple(pop, toolbox, cxpb=0.5, mutpb=0.2, ngen=1000, stats=stats, halloffame=hof)
     finally: 
         1 == 1
     #finally: 
