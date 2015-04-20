@@ -37,6 +37,9 @@ background_width = 320
 background_height = 240
 DELTA = 1
 POPSIZE = 10
+NUM_GENS = 100 
+ts = time.time() 
+val = 0
 
 # Generate a random image represented as a (pixels_height, pixels_width, 3) ndarray. 
 # 50% black, 50% white
@@ -91,7 +94,14 @@ def calculatedTranslationalAvg(individual):
     #imshow(swatch)
     #show()
 
+    global val 
+    val = val + 1
+
+    cv2.imwrite('/home/serena/noncooperative-robot/PatternEvolution/Images/' + 'pic' + str(ts)[0:10] + '_' + str(val) + '.png', swatch)
+
+
     #for k in range(0, background_width - SWATCH_NUM_PIXELS_WIDTH):
+    # TEMPORARY: ARBITRARY MIDDLE OF IMAGE 
     for k in range(50, 53):    
         prev_im_rep = background.copy()
         prev_im_rep[70:170, k:100+k] = swatch
@@ -140,7 +150,7 @@ def cx(ind1, ind2):
     
     
 
-toolbox.register("evaluate", partial(evalMax, PIC.copy()))
+toolbox.register("evaluate", evalMax, PIC)
 toolbox.register("mate", cx)
 toolbox.register("mutate", tools.mutGaussian, mu=0.0, sigma=0.2, indpb=0.3)
 toolbox.register("select", tools.selTournament, tournsize=2)
@@ -172,21 +182,18 @@ def main():
     try: 
         algorithms.eaSimple(pop, toolbox, cxpb=0.5, mutpb=0.2, ngen=100, stats=stats, halloffame=hof)
     finally: 
+        1 == 1
     #finally: 
-    #    PIC_new = PIC.copy()
-    #    for tri in hof[0]:
+        #PIC_new = PIC.copy()
+        #for tri in hof[0]:
+        #    PIC_new[tri[0]][tri[1]] = numpy.array([tri[2], tri[2], tri[2]])
+
+
+    #for i in range(1, len(history.genealogy_history) + 1):
+    #    PIC_new = numpy.zeros((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
+
+    #    for tri in history.genealogy_history[i]:
     #        PIC_new[tri[0]][tri[1]] = numpy.array([tri[2], tri[2], tri[2]])
-
-        ts = time.time() 
-
-    for i in range(1, len(history.genealogy_history) + 1):
-        PIC_new = numpy.zeros((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
-
-        for tri in history.genealogy_history[i]:
-            PIC_new[tri[0]][tri[1]] = numpy.array([tri[2], tri[2], tri[2]])
-
-        cv2.imwrite('/home/serena/noncooperative-robot/PatternEvolution/Images/' + 'pic' + str(ts)[0:10] + '_' + str(i) + '.png', PIC_new)
-
 
     #return pop, stats, hof
 
