@@ -83,10 +83,15 @@ toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
 def calculatedTranslationalAvg(individual):
 
-    swatch = numpy.empty((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
+    swatch = numpy.zeros((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
     for i in range(0,SWATCH_NUM_PIXELS_HEIGHT):
         for j in range(0,SWATCH_NUM_PIXELS_WIDTH):
             swatch[i][j] = individual[i][j]
+
+
+
+    #for i in range(0, len(individual)):
+    #    swatch[individual[i][0]][individual[i][1]] = numpy.array([individual[i][2], individual[i][2], individual[i][2]])
 
     xFlowTotal = 0 
     yFlowTotal = 0    
@@ -97,7 +102,7 @@ def calculatedTranslationalAvg(individual):
     global val 
     val = val + 1
 
-    cv2.imwrite('/home/serena/noncooperative-robot/PatternEvolution/Images/' + 'pic' + str(ts)[0:10] + '_' + str(val) + '.png', swatch)
+    cv2.imwrite('./Images/' + 'pic' + str(ts)[0:10] + '_' + str(val) + '.png', swatch)
 
 
     #for k in range(0, background_width - SWATCH_NUM_PIXELS_WIDTH):
@@ -122,7 +127,7 @@ def calculatedTranslationalAvg(individual):
         xFlowTotal += total[0] / (background.shape[0]*background.shape[1])
         yFlowTotal += total[1] / (background.shape[0]*background.shape[1])
 
-    return xFlowTotal/k#, yFlowTotal/k)
+    return -1 * xFlowTotal/k#, yFlowTotal/k)
 
 
 # Returns the longitudinal OF, vertical OF, for fitness calculations
@@ -150,16 +155,16 @@ def cx(ind1, ind2):
     
     
 
-toolbox.register("evaluate", evalMax, PIC)
+toolbox.register("evaluate", partial(evalMax, PIC))
 toolbox.register("mate", cx)
 toolbox.register("mutate", tools.mutGaussian, mu=0.0, sigma=0.2, indpb=0.3)
-toolbox.register("select", tools.selTournament, tournsize=2)
+toolbox.register("select", tools.selTournament, tournsize=3)
 # Decorate the variation operators
 toolbox.decorate("mate", history.decorator)
 toolbox.decorate("mutate", history.decorator)
 
 def main():
-    random.seed(64)
+    #random.seed(64)
 
     #imshow(PIC)
     #show()
