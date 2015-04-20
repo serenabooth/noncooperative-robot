@@ -17,6 +17,7 @@ import random
 import numpy
 import cv2
 import time
+import os
 
 from pylab import imshow, show, ion
 
@@ -27,7 +28,7 @@ from deap import tools
 from _functools import partial
 
 #ion()
-SWATCH_NUM_PIXELS_WIDTH = 100 
+SWATCH_NUM_PIXELS_WIDTH = 100
 SWATCH_NUM_PIXELS_HEIGHT = 100
 POPULATION = 40
 NGEN = 10
@@ -78,7 +79,7 @@ toolbox = base.Toolbox()
 history = tools.History()
 
 toolbox.register("attr", gen_random_pixels)
-toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr, n=SWATCH_NUM_PIXELS_WIDTH/2* SWATCH_NUM_PIXELS_HEIGHT)
+toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr, n=SWATCH_NUM_PIXELS_WIDTH * SWATCH_NUM_PIXELS_HEIGHT)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
 def calculatedTranslationalAvg(individual):
@@ -102,7 +103,10 @@ def calculatedTranslationalAvg(individual):
     global val 
     val = val + 1
 
-    cv2.imwrite('./Images/' + 'pic' + str(ts)[0:10] + '_' + str(val) + '.png', swatch)
+    if (val == 1):
+        os.makedirs('./Images/' + str(ts)[0:10] )
+
+    cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_' + str(val) + '.png', swatch)
 
 
     #for k in range(0, background_width - SWATCH_NUM_PIXELS_WIDTH):
@@ -187,13 +191,14 @@ def main():
     stats.register("min", numpy.min)
     stats.register("max", numpy.max)
     try: 
-        algorithms.eaSimple(pop, toolbox, cxpb=0.5, mutpb=0.2, ngen=1000, stats=stats, halloffame=hof)
+        algorithms.eaSimple(pop, toolbox, cxpb=0.5, mutpb=0.2, ngen=100, stats=stats, halloffame=hof)
     finally: 
-        1 == 1
-    #finally: 
-        #PIC_new = PIC.copy()
-        #for tri in hof[0]:
-        #    PIC_new[tri[0]][tri[1]] = numpy.array([tri[2], tri[2], tri[2]])
+        PIC_new = PIC.copy()
+        for tri in hof[0]:
+            PIC_new[tri[0]][tri[1]] = numpy.array([tri[2], tri[2], tri[2]])
+        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_FINAL.png', PIC_new)
+
+
 
 
     #for i in range(1, len(history.genealogy_history) + 1):
