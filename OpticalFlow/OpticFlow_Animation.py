@@ -4,11 +4,11 @@ import cv2
 import random
 from pylab import imshow, show
 
-swatch_width = 100
-swatch_height = 100
+swatch_width = 20
+swatch_height = 20
 
-background_width = 320
-background_height = 240
+background_width = 120
+background_height = 90
 
 midpoint = (int(background_width/2), int(background_height/2))
 
@@ -28,7 +28,7 @@ swatch = np.empty((swatch_width,swatch_width,3), np.uint8)
 # # create spotted swatch
 for i in range(0,swatch_height):
 	for j in range(0,swatch_width):
-		if(i%5 == 0 and j%5 == 0):
+		if(i%3 == 0 and j%3 == 0):
 			swatch[i][j] = (255,255,255)
 		else:
 			swatch[i][j] = (0,0,0)
@@ -48,18 +48,20 @@ while True:
 	im_rep = background.copy()
 
 	# replace a portion of the array with the swatch
-	y_pos = 70
+	y_pos = background_height/2 - swatch_height/2
 	im_rep[y_pos:y_pos+swatch.shape[1], i:swatch.shape[0]+i] = swatch
 	
 	# move the image i pixels to the right
 	i = i + 1
+	if i > (background.shape[1]-swatch.shape[1]):
+		i = 0
 
 	# make CV happy with grayscale images for previous and next frames
 	prv = cv2.cvtColor(prev_im_rep, cv2.COLOR_BGR2GRAY)
 	nxt = cv2.cvtColor(im_rep, cv2.COLOR_BGR2GRAY) 
 
 	# calculate optical flow
- 	flow = cv2.calcOpticalFlowFarneback(prv, nxt, 0.5, 4, 8, 2, 7, 1.5, cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
+ 	flow = cv2.calcOpticalFlowFarneback(prv, nxt, 0.5, 1, 5, 2, 5, 1.5, cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
 
  	# sum our optical flow and then get averages for x and y direction
 	total = cv2.sumElems(flow)
