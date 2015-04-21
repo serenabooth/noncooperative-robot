@@ -39,9 +39,13 @@ background_width = 320
 background_height = 240
 DELTA = 1
 POPSIZE = 10
-NUM_GENS = 10000
+NUM_GENS = 1000
 ts = time.time() 
 val = 0
+#x dimension of OF: -1 for min, 1 for max
+X_FUN = -1.0 
+# OF of a white swatch moving on a black background 
+BASELINE = 0 
 
 # Generate a random image represented as a (pixels_height, pixels_width, 3) ndarray. 
 # 50% black, 50% white
@@ -58,9 +62,18 @@ def genRandomImage(pixels_height, pixels_width):
 
     return im_rep
 
+
+#def genWhiteImage(pixels_height, pixels_width):
+#    im_rep = list()
+#    for i in range(0, pixels_height):
+#        for j in range(0, pixels_width):
+#            im_rep.append([i, j, WHITE])
+    #print im_rep
+#    return im_rep
+
 # PIC is the 100x100 swatch, background is the 320x240 image
 #PIC = genRandomImage(SWATCH_NUM_PIXELS_HEIGHT, SWATCH_NUM_PIXELS_WIDTH)
-PIC = numpy.zeros((SWATCH_NUM_PIXELS_HEIGHT, SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
+#PIC = numpy.zeros((SWATCH_NUM_PIXELS_HEIGHT, SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
 background = numpy.zeros((background_height,background_width,3), numpy.uint8)
 #background = genRandomImage(background_height, background_width)
 
@@ -73,7 +86,7 @@ def gen_random_pixels():
     return tuple([random.randint(0, SWATCH_NUM_PIXELS_HEIGHT - 1), 
         random.randint(0, SWATCH_NUM_PIXELS_WIDTH - 1), color])
 
-creator.create("FitnessMax", base.Fitness, weights=(-1.0,))
+creator.create("FitnessMax", base.Fitness, weights=(X_FUN,))
 creator.create("Individual", numpy.ndarray, fitness=creator.FitnessMax)
 
 toolbox = base.Toolbox() 
@@ -86,10 +99,12 @@ toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 def calculatedTranslationalAvg(individual):
 
     swatch = numpy.zeros((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
-    for i in range(0,SWATCH_NUM_PIXELS_HEIGHT):
-        for j in range(0,SWATCH_NUM_PIXELS_WIDTH):
-            swatch[i][j] = individual[i][j]
-
+    #for i in range(0,SWATCH_NUM_PIXELS_HEIGHT):
+    #    for j in range(0,SWATCH_NUM_PIXELS_WIDTH):
+    #        swatch[i][j] = individual[i][j]
+    
+    for tri in individual:
+        swatch[tri[0]][tri[1]] = numpy.array([tri[2], tri[2], tri[2]])
 
 
     #for i in range(0, len(individual)):
@@ -136,17 +151,12 @@ def calculatedTranslationalAvg(individual):
         xFlowTotal += total[0] / (background.shape[0]*background.shape[1])
         yFlowTotal += total[1] / (background.shape[0]*background.shape[1])
 
-    return -1 * xFlowTotal/k#, yFlowTotal/k)
+    return xFlowTotal/k#, yFlowTotal/k)
 
 
 # Returns the longitudinal OF, vertical OF, for fitness calculations
 def evalMax(individual):
-
-    ind = PIC.copy()
-    for tri in individual:
-        ind[tri[0]][tri[1]] = numpy.array([tri[2], tri[2], tri[2]])
-
-    h = calculatedTranslationalAvg(ind)
+    h = calculatedTranslationalAvg(individual)
     return h,
 
 # cross over function -- provided by DEAP
@@ -179,6 +189,14 @@ def main():
 
     #imshow(PIC)
     #show()
+    #im_rep = genWhiteImage(SWATCH_NUM_PIXELS_HEIGHT, SWATCH_NUM_PIXELS_WIDTH);
+    #global BASELINE
+
+    #for tri in BASELINE:
+    #    print tri
+
+    #BASELINE = calculatedTranslationalAvg(BASELINE);
+    #print BASELINE
     
     pop = toolbox.population(n=POPSIZE)
     # Create the population and populate the history
@@ -198,11 +216,11 @@ def main():
     try: 
         algorithms.eaSimple(pop, toolbox, cxpb=0.5, mutpb=0.2, ngen=NUM_GENS, stats=stats, halloffame=hof)
     finally: 
-        PIC_new = PIC.copy()
+        PIC_new = numpy.zeros((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
         for tri in hof[0]:
             PIC_new[tri[0]][tri[1]] = numpy.array([tri[2], tri[2], tri[2]])
         cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_FINAL.png', PIC_new)
-
+        
     #for i in range(1, len(history.genealogy_history) + 1):
     #    PIC_new = numpy.zeros((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
 
