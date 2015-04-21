@@ -1,3 +1,4 @@
+#!/usr/bin/python
 #    This file is part of DEAP.
 #
 #    DEAP is free software: you can redistribute it and/or modify
@@ -28,8 +29,8 @@ from deap import tools
 from _functools import partial
 
 #ion()
-SWATCH_NUM_PIXELS_WIDTH = 100
-SWATCH_NUM_PIXELS_HEIGHT = 100
+SWATCH_NUM_PIXELS_WIDTH = 50
+SWATCH_NUM_PIXELS_HEIGHT = 50
 POPULATION = 40
 NGEN = 10
 BLACK = 0
@@ -38,7 +39,7 @@ background_width = 320
 background_height = 240
 DELTA = 1
 POPSIZE = 10
-NUM_GENS = 100 
+NUM_GENS = 10000
 ts = time.time() 
 val = 0
 
@@ -72,7 +73,7 @@ def gen_random_pixels():
     return tuple([random.randint(0, SWATCH_NUM_PIXELS_HEIGHT - 1), 
         random.randint(0, SWATCH_NUM_PIXELS_WIDTH - 1), color])
 
-creator.create("FitnessMax", base.Fitness, weights=(1.0,))
+creator.create("FitnessMax", base.Fitness, weights=(-1.0,))
 creator.create("Individual", numpy.ndarray, fitness=creator.FitnessMax)
 
 toolbox = base.Toolbox() 
@@ -113,11 +114,15 @@ def calculatedTranslationalAvg(individual):
     # TEMPORARY: ARBITRARY MIDDLE OF IMAGE 
     for k in range(50, 53):    
         prev_im_rep = background.copy()
-        prev_im_rep[70:170, k:100+k] = swatch
+        prev_im_rep[background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2:
+                background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2 + SWATCH_NUM_PIXELS_HEIGHT, 
+                k:SWATCH_NUM_PIXELS_WIDTH+k] = swatch
 
         k = k + DELTA
         im_rep_next = background.copy()
-        im_rep_next[70:170, k:100+k] = swatch 
+        im_rep_next[background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2:
+                background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2 + SWATCH_NUM_PIXELS_HEIGHT, 
+                k:SWATCH_NUM_PIXELS_WIDTH+k] = swatch
 
         # make CV happy with grayscale images for previous and next frames
         prv = cv2.cvtColor(prev_im_rep, cv2.COLOR_BGR2GRAY)
@@ -191,15 +196,12 @@ def main():
     stats.register("min", numpy.min)
     stats.register("max", numpy.max)
     try: 
-        algorithms.eaSimple(pop, toolbox, cxpb=0.5, mutpb=0.2, ngen=100, stats=stats, halloffame=hof)
+        algorithms.eaSimple(pop, toolbox, cxpb=0.5, mutpb=0.2, ngen=NUM_GENS, stats=stats, halloffame=hof)
     finally: 
         PIC_new = PIC.copy()
         for tri in hof[0]:
             PIC_new[tri[0]][tri[1]] = numpy.array([tri[2], tri[2], tri[2]])
         cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_FINAL.png', PIC_new)
-
-
-
 
     #for i in range(1, len(history.genealogy_history) + 1):
     #    PIC_new = numpy.zeros((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
@@ -207,7 +209,7 @@ def main():
     #    for tri in history.genealogy_history[i]:
     #        PIC_new[tri[0]][tri[1]] = numpy.array([tri[2], tri[2], tri[2]])
 
-    #return pop, stats, hof
+    return pop, stats, hof
 
 if __name__ == "__main__":
     main(); 
