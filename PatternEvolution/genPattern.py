@@ -28,15 +28,14 @@ from deap import creator
 from deap import tools
 from _functools import partial
 
-SWATCH_NUM_PIXELS_WIDTH = 50
-SWATCH_NUM_PIXELS_HEIGHT = 50
+SWATCH_NUM_PIXELS_WIDTH = 10
+SWATCH_NUM_PIXELS_HEIGHT = 10
 
 background_width = 320
 background_height = 240
 
-POPULATION = 40
 POPSIZE = 10
-NUM_GENS = 1000
+NUM_GENS = 5000
 #x dimension of OF: -1 for min, 1 for max
 X_FUN = -1.0 
 
@@ -48,7 +47,33 @@ DELTA = 1 #num pixels translated
 ts = time.time() 
 val = 0
 # OF of a white swatch moving on a black background 
-BASELINE = 0 
+#BASELINE = calculateBaselineTranslationalAvg();
+BASELINE = 0
+
+
+def mutFlipPix(individual, indpb):
+    """Flip the value of the attributes of the input individual and return the
+    mutant. The *individual* is expected to be a :term:`sequence` and the values of the
+    attributes shall stay valid after the ``not`` operator is called on them.
+    The *indpb* argument is the probability of each attribute to be
+    flipped. This mutation is usually applied on boolean individuals.
+    
+    :param individual: Individual to be mutated.
+    :param indpb: Independent probability for each attribute to be flipped.
+    :returns: A tuple of one individual.
+    
+    This function uses the :func:`~random.random` function from the python base
+    :mod:`random` module.
+    """
+    for i in xrange(len(individual)):
+        if random.random() < indpb:
+            color = random.randint(0,1)
+            if(color == 1):
+                individual[i][2] = WHITE
+            else:
+                individual[i][2] = BLACK
+    
+    return individual,
 
 # Generate a random image represented as a (pixels_height, pixels_width, 3) ndarray. 
 # 50% black, 50% white
@@ -89,6 +114,7 @@ history = tools.History()
 toolbox.register("attr", gen_random_pixels)
 toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr, n=SWATCH_NUM_PIXELS_WIDTH * SWATCH_NUM_PIXELS_HEIGHT)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+
 
 def calculateBaselineTranslationalAvg(): 
     swatch = numpy.zeros((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
@@ -173,7 +199,7 @@ def calculatedTranslationalAvg(individual):
         xFlowTotal += total[0] / (background.shape[0]*background.shape[1])
         yFlowTotal += total[1] / (background.shape[0]*background.shape[1])
 
-    return xFlowTotal/k#, yFlowTotal/k)
+    return xFlowTotal/k - BASELINE#, yFlowTotal/k)
 
 
 # Returns the longitudinal OF, vertical OF, for fitness calculations
@@ -200,7 +226,7 @@ def cx(ind1, ind2):
 
 toolbox.register("evaluate", evalMax)
 toolbox.register("mate", cx)
-toolbox.register("mutate", tools.mutGaussian, mu=0.0, sigma=0.2, indpb=0.3)
+toolbox.register("mutate", mutFlipPix, indpb=0.1)
 toolbox.register("select", tools.selTournament, tournsize=3)
 
 # Decorate the variation operators for history usage only
@@ -212,11 +238,9 @@ def main():
 
     #imshow(PIC)
     #show()
-    global BASELINE
-    BASELINE = calculateBaselineTranslationalAvg(); 
-    print BASELINE
     
     pop = toolbox.population(n=POPSIZE)
+
     # Create the population and populate the history
     history.update(pop)
     
@@ -231,8 +255,13 @@ def main():
     stats.register("std", numpy.std)
     stats.register("min", numpy.min)
     stats.register("max", numpy.max)
+
+    #record = stats.compile(pop)
+    #logbook = tools.Logbook()
+    #logbook.record(gen=0, evals=30, **record)
+
     try: 
-        algorithms.eaSimple(pop, toolbox, cxpb=0.5, mutpb=0.2, ngen=NUM_GENS, stats=stats, halloffame=hof)
+        algorithms.eaMuPlusLambda(pop, toolbox, mu=2, lambda_=10, cxpb=0.5, mutpb=0.4, ngen=NUM_GENS, stats=stats, halloffame=hof, verbose=True)
     finally: 
         PIC_new = numpy.zeros((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
         for tri in hof[0]:
