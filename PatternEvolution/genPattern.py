@@ -28,14 +28,14 @@ from deap import creator
 from deap import tools
 from _functools import partial
 
-SWATCH_NUM_PIXELS_WIDTH = 10
-SWATCH_NUM_PIXELS_HEIGHT = 10
+SWATCH_NUM_PIXELS_WIDTH = 50
+SWATCH_NUM_PIXELS_HEIGHT = 50
 
 background_width = 320
 background_height = 240
 
 POPSIZE = 10
-NUM_GENS = 5000
+NUM_GENS = 10000
 #x dimension of OF: -1 for min, 1 for max
 X_FUN = -1.0 
 
@@ -68,10 +68,10 @@ def mutFlipPix(individual, indpb):
     for i in xrange(len(individual)):
         if random.random() < indpb:
             color = random.randint(0,1)
-            if(color == 1):
-                individual[i][2] = WHITE
-            else:
+            if(color == 0):
                 individual[i][2] = BLACK
+            else:
+                individual[i][2] = WHITE
     
     return individual,
 
@@ -154,9 +154,10 @@ def calculateBaselineTranslationalAvg():
 def calculatedTranslationalAvg(individual):
 
     swatch = numpy.zeros((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
+    
     #for i in range(0,SWATCH_NUM_PIXELS_HEIGHT):
     #    for j in range(0,SWATCH_NUM_PIXELS_WIDTH):
-    #        swatch[i][j] = individual[i][j]
+    #        swatch[i][j] = numpy.array([100, 100, 100])
     
     for tri in individual:
         swatch[tri[0]][tri[1]] = numpy.array([tri[2], tri[2], tri[2]])
@@ -222,11 +223,9 @@ def cx(ind1, ind2):
         
     return ind1, ind2
     
-    
-
 toolbox.register("evaluate", evalMax)
 toolbox.register("mate", cx)
-toolbox.register("mutate", mutFlipPix, indpb=0.1)
+toolbox.register("mutate", mutFlipPix, indpb=0.05)
 toolbox.register("select", tools.selTournament, tournsize=3)
 
 # Decorate the variation operators for history usage only
@@ -261,7 +260,9 @@ def main():
     #logbook.record(gen=0, evals=30, **record)
 
     try: 
-        algorithms.eaMuPlusLambda(pop, toolbox, mu=2, lambda_=10, cxpb=0.5, mutpb=0.4, ngen=NUM_GENS, stats=stats, halloffame=hof, verbose=True)
+        #algorithms.eaMuPlusLambda(pop, toolbox, mu=2, lambda_=10, cxpb=0.25, mutpb=0.5, ngen=NUM_GENS, stats=stats, halloffame=hof, verbose=True)
+
+        algorithms.eaSimple(pop, toolbox, cxpb=0.25, mutpb=0.5, ngen=NUM_GENS, stats=stats, halloffame=hof, verbose=True)
     finally: 
         PIC_new = numpy.zeros((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
         for tri in hof[0]:
