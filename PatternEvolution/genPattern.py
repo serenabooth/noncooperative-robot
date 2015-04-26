@@ -35,7 +35,7 @@ background_width = 320
 background_height = 240
 
 POPSIZE = 10
-NUM_GENS = 10000
+NUM_GENS = 50000
 #x dimension of OF: -1 for min, 1 for max
 X_FUN = -1.0 
 
@@ -75,6 +75,31 @@ def mutFlipPix(individual, indpb):
     
     return individual,
 
+
+def mutFlipPix_refactored(individual, indpb):
+    """Flip the value of the attributes of the input individual and return the
+    mutant. The *individual* is expected to be a :term:`sequence` and the values of the
+    attributes shall stay valid after the ``not`` operator is called on them.
+    The *indpb* argument is the probability of each attribute to be
+    flipped. This mutation is usually applied on boolean individuals.
+    
+    :param individual: Individual to be mutated.
+    :param indpb: Independent probability for each attribute to be flipped.
+    :returns: A tuple of one individual.
+    
+    This function uses the :func:`~random.random` function from the python base
+    :mod:`random` module.
+    """
+    for i in xrange(len(individual)):
+        if random.random() < indpb:
+            color = random.randint(0,1)
+            if(color == 0):
+                individual[i] = BLACK
+            else:
+                individual[i] = WHITE
+    
+    return individual,
+
 # Generate a random image represented as a (pixels_height, pixels_width, 3) ndarray. 
 # 50% black, 50% white
 def genRandomImage(pixels_height, pixels_width):
@@ -105,13 +130,19 @@ def gen_random_pixels():
     return tuple([random.randint(0, SWATCH_NUM_PIXELS_HEIGHT - 1), 
         random.randint(0, SWATCH_NUM_PIXELS_WIDTH - 1), color])
 
+def gen_random_pixel_refactored(): 
+    color = random.randint(0,1) # returns 0 or 1 for b or w 
+    if (color == 1):
+        color = WHITE
+    return color 
+
 creator.create("FitnessMax", base.Fitness, weights=(X_FUN,))
 creator.create("Individual", numpy.ndarray, fitness=creator.FitnessMax)
 
 toolbox = base.Toolbox() 
 history = tools.History()
 
-toolbox.register("attr", gen_random_pixels)
+toolbox.register("attr", gen_random_pixel_refactored)
 toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr, n=SWATCH_NUM_PIXELS_WIDTH * SWATCH_NUM_PIXELS_HEIGHT)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
@@ -202,10 +233,63 @@ def calculatedTranslationalAvg(individual):
 
     return xFlowTotal/k - BASELINE#, yFlowTotal/k)
 
+def calculatedTranslationalAvg_refactored(individual):
+
+    swatch = numpy.zeros((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
+    
+    # test if xover is breaking the representation
+    #for i in range(0,SWATCH_NUM_PIXELS_HEIGHT):
+    #    for j in range(0,SWATCH_NUM_PIXELS_WIDTH):
+    #        swatch[i][j] = numpy.array([100, 100, 100])
+    
+    for i in range(0, SWATCH_NUM_PIXELS_HEIGHT):
+        for j in range (0, SWATCH_NUM_PIXELS_WIDTH):
+            swatch[i][j] = numpy.array([individual[SWATCH_NUM_PIXELS_HEIGHT * i + j],individual[SWATCH_NUM_PIXELS_HEIGHT * i + j], individual[SWATCH_NUM_PIXELS_HEIGHT * i + j]])
+
+    xFlowTotal = 0 
+    yFlowTotal = 0    
+
+    global val 
+    val = val + 1
+
+    if (val == 1):
+        os.makedirs('./Images/' + str(ts)[0:10] )
+
+    cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_' + str(val) + '.png', swatch)
+
+
+    #for k in range(0, background_width - SWATCH_NUM_PIXELS_WIDTH):
+    # TEMPORARY: ARBITRARY MIDDLE OF IMAGE 
+    for k in range(50, 53):    
+        prev_im_rep = background.copy()
+        prev_im_rep[background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2:
+                background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2 + SWATCH_NUM_PIXELS_HEIGHT, 
+                k:SWATCH_NUM_PIXELS_WIDTH+k] = swatch
+
+        k = k + DELTA
+        im_rep_next = background.copy()
+        im_rep_next[background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2:
+                background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2 + SWATCH_NUM_PIXELS_HEIGHT, 
+                k:SWATCH_NUM_PIXELS_WIDTH+k] = swatch
+
+        # make CV happy with grayscale images for previous and next frames
+        prv = cv2.cvtColor(prev_im_rep, cv2.COLOR_BGR2GRAY)
+        nxt = cv2.cvtColor(im_rep_next, cv2.COLOR_BGR2GRAY) 
+
+        # calculate optical flow
+        flow = cv2.calcOpticalFlowFarneback(prv, nxt, 0.5, 4, 8, 2, 7, 1.5, cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
+
+        # sum our optical flow and then get averages for x and y direction
+        total = cv2.sumElems(flow)
+        xFlowTotal += total[0] / (background.shape[0]*background.shape[1])
+        yFlowTotal += total[1] / (background.shape[0]*background.shape[1])
+
+    return xFlowTotal/k - BASELINE#, yFlowTotal/k)
+
 
 # Returns the longitudinal OF, vertical OF, for fitness calculations
 def evalMax(individual):
-    h = calculatedTranslationalAvg(individual)
+    h = calculatedTranslationalAvg_refactored(individual)
     return h,
 
 # cross over function -- provided by DEAP
@@ -225,7 +309,7 @@ def cx(ind1, ind2):
     
 toolbox.register("evaluate", evalMax)
 toolbox.register("mate", cx)
-toolbox.register("mutate", mutFlipPix, indpb=0.05)
+toolbox.register("mutate", mutFlipPix_refactored, indpb=0.05)
 toolbox.register("select", tools.selTournament, tournsize=3)
 
 # Decorate the variation operators for history usage only
@@ -260,13 +344,19 @@ def main():
     #logbook.record(gen=0, evals=30, **record)
 
     try: 
-        #algorithms.eaMuPlusLambda(pop, toolbox, mu=2, lambda_=10, cxpb=0.25, mutpb=0.5, ngen=NUM_GENS, stats=stats, halloffame=hof, verbose=True)
+        algorithms.eaMuPlusLambda(pop, toolbox, mu=3, lambda_=POPSIZE, cxpb=0.25, mutpb=0.5, ngen=NUM_GENS, stats=stats, halloffame=hof, verbose=True)
 
-        algorithms.eaSimple(pop, toolbox, cxpb=0.25, mutpb=0.5, ngen=NUM_GENS, stats=stats, halloffame=hof, verbose=True)
+        #algorithms.eaSimple(pop, toolbox, cxpb=0.25, mutpb=0.5, ngen=NUM_GENS, stats=stats, halloffame=hof, verbose=True)
     finally: 
         PIC_new = numpy.zeros((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
-        for tri in hof[0]:
-            PIC_new[tri[0]][tri[1]] = numpy.array([tri[2], tri[2], tri[2]])
+        for i in range(0, SWATCH_NUM_PIXELS_HEIGHT):
+            for j in range (0, SWATCH_NUM_PIXELS_WIDTH):
+                PIC_new[i][j] = numpy.array([hof[0][SWATCH_NUM_PIXELS_HEIGHT * i + j],hof[0][SWATCH_NUM_PIXELS_HEIGHT * i + j], hof[0][SWATCH_NUM_PIXELS_HEIGHT * i + j]])
+
+        #for tri in hof[0]:
+        #    for i in range(0, SWATCH_NUM_PIXELS_HEIGHT):
+        #        for j in range (0, SWATCH_NUM_PIXELS_WIDTH):
+        #            PIC_new[i][j] = numpy.array([tri[individual[SWATCH_NUM_PIXELS_HEIGHT * i + SWATCH_NUM_PIXELS_WIDTH * j], tri[individual[SWATCH_NUM_PIXELS_HEIGHT * i + SWATCH_NUM_PIXELS_WIDTH * j], tri[individual[SWATCH_NUM_PIXELS_HEIGHT * i + SWATCH_NUM_PIXELS_WIDTH * j]])
         cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_FINAL.png', PIC_new)
         
     #save images as history rather than in situ
