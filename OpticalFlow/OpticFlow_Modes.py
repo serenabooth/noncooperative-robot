@@ -63,7 +63,7 @@ def getZoomOpticalFlow(prev_frame, next_frame):
 	frame_flow = [[0,0,0],[0,0,0],[0,0,0]]
 
 	# scale the optic flow to show up...
-	flowscale = 10
+	flowscale = 100
 
 	# split into 9 frames
 	for i in range(0,3):
@@ -109,11 +109,13 @@ def getZoomOpticalFlow(prev_frame, next_frame):
 	bl = np.dot(bl_center, frame_flow[2][0])
 	l  = np.dot(l_center,  frame_flow[1][0])
 
-	return tl
+	return tl + r + tr + r + br + b + bl + l # summ all of the divergence
 
 
 #index to increment our movement
-i = 0 
+i = 100 
+center = [background.shape[0]/2, background.shape[1]/2]
+
 
 while True:
 
@@ -121,14 +123,36 @@ while True:
 	im_rep = background.copy()
 	flow_rep = background.copy()
 
-	# replace a portion of the array with the swatch
-	y_pos = background_height/2 - swatch_height/2
-	im_rep[y_pos:y_pos+swatch.shape[1], i:swatch.shape[0]+i] = swatch
+	# TRANSLATION
+	#----------------------------------------------------------------------
+	# # replace a portion of the array with the swatch
+	# y_pos = background_height/2 - swatch_height/2
+	# im_rep[y_pos:y_pos+swatch.shape[1], i:swatch.shape[0]+i] = swatch
 	
-	# move the image i pixels to the right
-	i = i + 10
-	if i > (background.shape[1]-swatch.shape[1]):
-		i = 0
+	# # move the image i pixels to the right
+	# i = i + 10
+	# if i > (background.shape[1]-swatch.shape[1]):
+	# 	i = 0
+	#----------------------------------------------------------------------
+
+
+	# ZOOM
+	#----------------------------------------------------------------------
+	# zoom the image a pixel in size
+	i = i + 2	#increment 2 pixels so the canvas grows a pixel around each frame
+	dim = (i, i)
+	 
+	# perform the actual resizing of the image and show it
+	swatch = cv2.resize(swatch, dim, interpolation = cv2.INTER_AREA)
+
+	# replace a portion of the array with the swatch
+	left = center[0]-swatch.shape[0]/2
+	right = center[0]+swatch.shape[0]/2
+	top = center[1]-swatch.shape[1]/2
+	bottom = center[1]+swatch.shape[1]/2
+
+	im_rep[left:right, top:bottom] = swatch
+	#----------------------------------------------------------------------
 
 	# make CV happy with grayscale images for previous and next frames
 	prv = cv2.cvtColor(prev_im_rep, cv2.COLOR_BGR2GRAY)
