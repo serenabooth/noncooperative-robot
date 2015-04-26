@@ -126,7 +126,7 @@ def getZoomOpticalFlow(prev_frame, next_frame):
 			left = j*prev_frame.shape[0]/3
 			right = (j+1)*center[0]+prev_frame.shape[0]/2
 			top = i*prev_frame.shape[1]/2
-			bottom = (i+1)prev_frame.shape[1]/2
+			bottom = (i+1)*prev_frame.shape[1]/2
 
 			sub_prev_frame = prev_frame[left:right, top:bottom]
 			sub_next_frame = next_frame[left:right, top:bottom]
