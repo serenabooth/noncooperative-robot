@@ -89,15 +89,14 @@ def getRotationalOpticalFlow(prev_frame, next_frame):
 			cv2.line(flow_rep, midpoint, flowpoint, (0,255,0),1)
 
 	# create vectors to the center point from the center of the 9 frames
-	center = (prev_frame.shape[0]/2, prev_frame.shape[1]/2)
-	tl_center = (1*prev_frame.shape[0]/6 - center[0], 1*prev_frame.shape[1]/6 - center[1])
-	t_center  = (3*prev_frame.shape[0]/6 - center[0], 1*prev_frame.shape[1]/6 - center[1])
-	tr_center = (5*prev_frame.shape[0]/6 - center[0], 1*prev_frame.shape[1]/6 - center[1])
-	r_center  = (5*prev_frame.shape[0]/6 - center[0], 3*prev_frame.shape[1]/6 - center[1])
-	br_center = (5*prev_frame.shape[0]/6 - center[0], 5*prev_frame.shape[1]/6 - center[1])
-	b_center  = (3*prev_frame.shape[0]/6 - center[0], 5*prev_frame.shape[1]/6 - center[1])
-	bl_center = (1*prev_frame.shape[0]/6 - center[0], 5*prev_frame.shape[1]/6 - center[1])
-	l_center  = (1*prev_frame.shape[0]/6 - center[0], 3*prev_frame.shape[1]/6 - center[1])
+	tl_center = (1*prev_frame.shape[0]/6, 1*prev_frame.shape[1]/6)
+	t_center  = (3*prev_frame.shape[0]/6, 1*prev_frame.shape[1]/6)
+	tr_center = (5*prev_frame.shape[0]/6, 1*prev_frame.shape[1]/6)
+	r_center  = (5*prev_frame.shape[0]/6, 3*prev_frame.shape[1]/6)
+	br_center = (5*prev_frame.shape[0]/6, 5*prev_frame.shape[1]/6)
+	b_center  = (3*prev_frame.shape[0]/6, 5*prev_frame.shape[1]/6)
+	bl_center = (1*prev_frame.shape[0]/6, 5*prev_frame.shape[1]/6)
+	l_center  = (1*prev_frame.shape[0]/6, 3*prev_frame.shape[1]/6)
 
 	# look at all values and take the cross product with a vector to the center
 	tl = np.cross(tl_center, frame_flow[0][0])
@@ -109,7 +108,7 @@ def getRotationalOpticalFlow(prev_frame, next_frame):
 	bl = np.cross(bl_center, frame_flow[2][0])
 	l  = np.cross(l_center,  frame_flow[1][0])
 
-	return tl
+	return tl + t + tr + r + br + b + bl + l
 
 
 #index to increment our movement
