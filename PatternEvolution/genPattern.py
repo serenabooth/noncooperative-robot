@@ -16,6 +16,7 @@
 
 import random
 import numpy
+import numpy as np
 import cv2
 import time
 import os
@@ -28,16 +29,19 @@ from deap import creator
 from deap import tools
 from _functools import partial
 
-SWATCH_NUM_PIXELS_WIDTH = 50
-SWATCH_NUM_PIXELS_HEIGHT = 50
+# 0 for Translational, 1 for zoom, 2 for rotation
+option = 1 
+
+SWATCH_NUM_PIXELS_WIDTH = 12
+SWATCH_NUM_PIXELS_HEIGHT = 12
 
 background_width = 320
 background_height = 240
 
 POPSIZE = 10
-NUM_GENS = 50000
+NUM_GENS = 5000
 #x dimension of OF: -1 for min, 1 for max
-X_FUN = -1.0 
+X_FUN = 1.0 
 
 BLACK = 0
 WHITE = 255
@@ -50,46 +54,7 @@ val = 0
 #BASELINE = calculateBaselineTranslationalAvg();
 BASELINE = 0
 
-
-def mutFlipPix(individual, indpb):
-    """Flip the value of the attributes of the input individual and return the
-    mutant. The *individual* is expected to be a :term:`sequence` and the values of the
-    attributes shall stay valid after the ``not`` operator is called on them.
-    The *indpb* argument is the probability of each attribute to be
-    flipped. This mutation is usually applied on boolean individuals.
-    
-    :param individual: Individual to be mutated.
-    :param indpb: Independent probability for each attribute to be flipped.
-    :returns: A tuple of one individual.
-    
-    This function uses the :func:`~random.random` function from the python base
-    :mod:`random` module.
-    """
-    for i in xrange(len(individual)):
-        if random.random() < indpb:
-            color = random.randint(0,1)
-            if(color == 0):
-                individual[i][2] = BLACK
-            else:
-                individual[i][2] = WHITE
-    
-    return individual,
-
-
 def mutFlipPix_refactored(individual, indpb):
-    """Flip the value of the attributes of the input individual and return the
-    mutant. The *individual* is expected to be a :term:`sequence` and the values of the
-    attributes shall stay valid after the ``not`` operator is called on them.
-    The *indpb* argument is the probability of each attribute to be
-    flipped. This mutation is usually applied on boolean individuals.
-    
-    :param individual: Individual to be mutated.
-    :param indpb: Independent probability for each attribute to be flipped.
-    :returns: A tuple of one individual.
-    
-    This function uses the :func:`~random.random` function from the python base
-    :mod:`random` module.
-    """
     for i in xrange(len(individual)):
         if random.random() < indpb:
             color = random.randint(0,1)
@@ -115,21 +80,28 @@ def genRandomImage(pixels_height, pixels_width):
 
     return im_rep
 
+# Generate a random image represented as a (pixels_height, pixels_width, 3) ndarray. 
+# 50% black, 50% white
+def genStripedImage(pixels_height, pixels_width):
+    im_rep = numpy.zeros((pixels_height,pixels_width,3), numpy.uint8)
+
+    for x in range (0, pixels_height):
+        for y in range(0, pixels_width):
+            if (x % 3 == 0 or x % 4 == 0):
+                im_rep[x][y] = numpy.array([WHITE,WHITE,WHITE])
+            else:
+                im_rep[x][y] = numpy.array([BLACK,BLACK,BLACK])
+
+    return im_rep
 
 
 #background is a 240x320 all-black image. 
 background = numpy.zeros((background_height,background_width,3), numpy.uint8)
 #background = genRandomImage(background_height, background_width)
+#background = genStripedImage(background_height, background_width)
 
-# insert randomness through pixel generation
-def gen_random_pixels(): 
-    color = random.randint(0,1) # returns 0 or 1 for b or w 
-    #color = WHITE
-    if (color == 1):
-        color = WHITE
-    return tuple([random.randint(0, SWATCH_NUM_PIXELS_HEIGHT - 1), 
-        random.randint(0, SWATCH_NUM_PIXELS_WIDTH - 1), color])
-
+#imshow(background)
+#show()
 def gen_random_pixel_refactored(): 
     color = random.randint(0,1) # returns 0 or 1 for b or w 
     if (color == 1):
@@ -146,96 +118,9 @@ toolbox.register("attr", gen_random_pixel_refactored)
 toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr, n=SWATCH_NUM_PIXELS_WIDTH * SWATCH_NUM_PIXELS_HEIGHT)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
-
-def calculateBaselineTranslationalAvg(): 
-    swatch = numpy.zeros((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
-    xFlowTotal = 0 
-    yFlowTotal = 0  
-
-    for i in range (0, SWATCH_NUM_PIXELS_HEIGHT):
-        for j in range(0, SWATCH_NUM_PIXELS_WIDTH):
-            swatch[i][j] = numpy.array([WHITE, WHITE, WHITE])
-
-    for k in range(0, background_width - SWATCH_NUM_PIXELS_WIDTH):    
-        prev_im_rep = background.copy()
-        prev_im_rep[background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2:
-                background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2 + SWATCH_NUM_PIXELS_HEIGHT, 
-                k:SWATCH_NUM_PIXELS_WIDTH+k] = swatch
-
-        k = k + DELTA
-        im_rep_next = background.copy()
-        im_rep_next[background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2:
-                background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2 + SWATCH_NUM_PIXELS_HEIGHT, 
-                k:SWATCH_NUM_PIXELS_WIDTH+k] = swatch
-
-        # make CV happy with grayscale images for previous and next frames
-        prv = cv2.cvtColor(prev_im_rep, cv2.COLOR_BGR2GRAY)
-        nxt = cv2.cvtColor(im_rep_next, cv2.COLOR_BGR2GRAY) 
-
-        # calculate optical flow
-        flow = cv2.calcOpticalFlowFarneback(prv, nxt, 0.5, 4, 8, 2, 7, 1.5, cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
-
-        # sum our optical flow and then get averages for x and y direction
-        total = cv2.sumElems(flow)
-        xFlowTotal += total[0] / (background.shape[0]*background.shape[1])
-        yFlowTotal += total[1] / (background.shape[0]*background.shape[1])
-
-    return xFlowTotal/k
-
-def calculatedTranslationalAvg(individual):
-
-    swatch = numpy.zeros((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
-    
-    #for i in range(0,SWATCH_NUM_PIXELS_HEIGHT):
-    #    for j in range(0,SWATCH_NUM_PIXELS_WIDTH):
-    #        swatch[i][j] = numpy.array([100, 100, 100])
-    
-    for tri in individual:
-        swatch[tri[0]][tri[1]] = numpy.array([tri[2], tri[2], tri[2]])
-
-    xFlowTotal = 0 
-    yFlowTotal = 0    
-
-    global val 
-    val = val + 1
-
-    if (val == 1):
-        os.makedirs('./Images/' + str(ts)[0:10] )
-
-    cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_' + str(val) + '.png', swatch)
-
-
-    #for k in range(0, background_width - SWATCH_NUM_PIXELS_WIDTH):
-    # TEMPORARY: ARBITRARY MIDDLE OF IMAGE 
-    for k in range(50, 53):    
-        prev_im_rep = background.copy()
-        prev_im_rep[background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2:
-                background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2 + SWATCH_NUM_PIXELS_HEIGHT, 
-                k:SWATCH_NUM_PIXELS_WIDTH+k] = swatch
-
-        k = k + DELTA
-        im_rep_next = background.copy()
-        im_rep_next[background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2:
-                background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2 + SWATCH_NUM_PIXELS_HEIGHT, 
-                k:SWATCH_NUM_PIXELS_WIDTH+k] = swatch
-
-        # make CV happy with grayscale images for previous and next frames
-        prv = cv2.cvtColor(prev_im_rep, cv2.COLOR_BGR2GRAY)
-        nxt = cv2.cvtColor(im_rep_next, cv2.COLOR_BGR2GRAY) 
-
-        # calculate optical flow
-        flow = cv2.calcOpticalFlowFarneback(prv, nxt, 0.5, 4, 8, 2, 7, 1.5, cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
-
-        # sum our optical flow and then get averages for x and y direction
-        total = cv2.sumElems(flow)
-        xFlowTotal += total[0] / (background.shape[0]*background.shape[1])
-        yFlowTotal += total[1] / (background.shape[0]*background.shape[1])
-
-    return xFlowTotal/k - BASELINE#, yFlowTotal/k)
-
 def calculatedTranslationalAvg_refactored(individual):
 
-    swatch = numpy.zeros((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
+    swatch = numpy.empty((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
     
     # test if xover is breaking the representation
     #for i in range(0,SWATCH_NUM_PIXELS_HEIGHT):
@@ -262,6 +147,7 @@ def calculatedTranslationalAvg_refactored(individual):
     # TEMPORARY: ARBITRARY MIDDLE OF IMAGE 
     for k in range(50, 53):    
         prev_im_rep = background.copy()
+
         prev_im_rep[background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2:
                 background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2 + SWATCH_NUM_PIXELS_HEIGHT, 
                 k:SWATCH_NUM_PIXELS_WIDTH+k] = swatch
@@ -286,10 +172,155 @@ def calculatedTranslationalAvg_refactored(individual):
 
     return xFlowTotal/k - BASELINE#, yFlowTotal/k)
 
+# this function returns the average value of the optical flow
+def getAverageOpticalFlow(prev_frame, next_frame):
+    # calculate optical flow
+    flow = cv2.calcOpticalFlowFarneback(prev_frame, next_frame, 0.5, 4, 8, 2, 7, 1.5, cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
+
+    # sum our optical flow and then get averages for x and y direction
+    total = cv2.sumElems(flow)
+    xFlowAvg = total[0] / (background.shape[0]*background.shape[1])
+    yFlowAvg = total[1] / (background.shape[0]*background.shape[1])
+
+    flow_vector = [xFlowAvg, yFlowAvg]
+    return flow_vector
+
+# this function splits up images into 9 subimages to determine optical flow on
+# after determining optical flow, of the 9 images, it computes a value of zoom
+# based on the opposing vectors
+def getZoomOpticalFlow(prev_frame, next_frame):
+    # store flow for each frame
+    frame_flow = [[0,0,0],[0,0,0],[0,0,0]]
+
+    # scale the optic flow to show up...
+    flowscale = 100
+
+    # split into 9 frames
+    for i in range(0,3):
+        for j in range(0,3):
+            left = j*prev_frame.shape[0]/3
+            right = (j+1)*prev_frame.shape[0]/3
+            top = i*prev_frame.shape[1]/3
+            bottom = (i+1)*prev_frame.shape[1]/3
+
+            sub_prev_frame = prev_frame[left:right, top:bottom]
+            sub_next_frame = next_frame[left:right, top:bottom]
+
+            #check optical flow for subframe
+            frame_flow[i][j] = getAverageOpticalFlow(sub_prev_frame, sub_next_frame)
+            
+            midpoint = ((2*j+1)*prev_frame.shape[1]/6, (2*i+1)*prev_frame.shape[0]/6, )
+            flowpoint = (midpoint[0] + int(frame_flow[i][j][0]*flowscale), midpoint[1] + int(frame_flow[i][j][1]*flowscale))
+
+            # midpoint = (midpoint[1], midpoint[0])
+            # flowpoint = (flowpoint[1], flowpoint[0])
+
+            #draw the flow to our visualizer
+            #cv2.line(im_rep, midpoint, flowpoint, (0,255,0),1)
+
+    # create vectors to the center point from the center of the 9 frames
+    center = (prev_frame.shape[0]/2, prev_frame.shape[1]/2)
+    tl_center = (1*prev_frame.shape[0]/6, 1*prev_frame.shape[1]/6)
+    t_center  = (3*prev_frame.shape[0]/6, 1*prev_frame.shape[1]/6)
+    tr_center = (5*prev_frame.shape[0]/6, 1*prev_frame.shape[1]/6)
+    r_center  = (5*prev_frame.shape[0]/6, 3*prev_frame.shape[1]/6)
+    br_center = (5*prev_frame.shape[0]/6, 5*prev_frame.shape[1]/6)
+    b_center  = (3*prev_frame.shape[0]/6, 5*prev_frame.shape[1]/6)
+    bl_center = (1*prev_frame.shape[0]/6, 5*prev_frame.shape[1]/6)
+    l_center  = (1*prev_frame.shape[0]/6, 3*prev_frame.shape[1]/6)
+
+    # look at all values and take the dot product with a vector to the center
+    tl = np.dot(tl_center, frame_flow[0][0])
+    t  = np.dot(t_center,  frame_flow[0][1])
+    tr = np.dot(tr_center, frame_flow[0][2])
+    r  = np.dot(r_center,  frame_flow[1][2])
+    br = np.dot(br_center, frame_flow[2][2])
+    b  = np.dot(b_center,  frame_flow[2][1])
+    bl = np.dot(bl_center, frame_flow[2][0])
+    l  = np.dot(l_center,  frame_flow[1][0])
+
+    return tl + r + tr + r + br + b + bl + l # summ all of the divergence
+
+def calculatedZoomAvg(individual):
+    center = [background.shape[0]/2, background.shape[1]/2]
+
+    im_rep = background.copy()
+    prev_im_rep = background.copy()
+
+    swatch = numpy.empty((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
+    
+    for i in range(0, SWATCH_NUM_PIXELS_HEIGHT):
+        for j in range (0, SWATCH_NUM_PIXELS_WIDTH):
+            swatch[i][j] = numpy.array([individual[SWATCH_NUM_PIXELS_HEIGHT * i + j],individual[SWATCH_NUM_PIXELS_HEIGHT * i + j], individual[SWATCH_NUM_PIXELS_HEIGHT * i + j]])
+
+    #imshow(prev_im_rep)
+    #show()  
+
+    global val 
+    val = val + 1
+    # print each Swatch
+    if (val == 1):
+        os.makedirs('./Images/' + str(ts)[0:10] )
+
+    cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_' + str(val) + '.png', swatch)
+
+        # ZOOM
+    #----------------------------------------------------------------------
+    # zoom the image a pixel in size
+
+    ## ARE THESE INDEXED CORRECTLY??? 
+    # square so doesn't matter for now
+    i_x = 200
+    i_y = 200
+
+    dim = (i_x, i_y)
+
+    swatch1 = cv2.resize(swatch, dim, interpolation = cv2.INTER_AREA)
+
+
+    left = center[0]-swatch1.shape[0]/2
+    right = center[0]+swatch1.shape[0]/2
+    top = center[1]-swatch1.shape[1]/2
+    bottom = center[1]+swatch1.shape[1]/2
+
+    prev_im_rep[left:right, top:bottom] = swatch1
+
+
+    i_x = i_x + 20   #increment 2 pixels so the canvas grows a pixel around each frame
+    i_y = i_y + 20 
+    dim = (i_x, i_y)
+     
+    # perform the actual resizing of the image and show it
+    swatch = cv2.resize(swatch, dim, interpolation = cv2.INTER_AREA)
+
+    # replace a portion of the array with the swatch
+    left = center[0]-swatch.shape[0]/2
+    right = center[0]+swatch.shape[0]/2
+    top = center[1]-swatch.shape[1]/2
+    bottom = center[1]+swatch.shape[1]/2
+
+    im_rep[left:right, top:bottom] = swatch
+    #----------------------------------------------------------------------
+
+    # make CV happy with grayscale images for previous and next frames
+    prv = cv2.cvtColor(prev_im_rep, cv2.COLOR_BGR2GRAY)
+    nxt = cv2.cvtColor(im_rep, cv2.COLOR_BGR2GRAY) 
+
+    zoom_val = getZoomOpticalFlow(prv, nxt)
+    return zoom_val
+
+
+def calculatedRotAvg(individual):
+    return 0
 
 # Returns the longitudinal OF, vertical OF, for fitness calculations
 def evalMax(individual):
-    h = calculatedTranslationalAvg_refactored(individual)
+    if (option == 0):
+        h = calculatedTranslationalAvg_refactored(individual)
+    elif (option == 1):
+        h = calculatedZoomAvg(individual)
+    else:
+        h = calculatedRotAvg(individual)
     return h,
 
 # cross over function -- provided by DEAP
@@ -318,9 +349,6 @@ toolbox.decorate("mutate", history.decorator)
 
 def main():
     random.seed(64)
-
-    #imshow(PIC)
-    #show()
     
     pop = toolbox.population(n=POPSIZE)
 
@@ -339,33 +367,18 @@ def main():
     stats.register("min", numpy.min)
     stats.register("max", numpy.max)
 
-    #record = stats.compile(pop)
-    #logbook = tools.Logbook()
-    #logbook.record(gen=0, evals=30, **record)
-
     try: 
         algorithms.eaMuPlusLambda(pop, toolbox, mu=3, lambda_=POPSIZE, cxpb=0.25, mutpb=0.5, ngen=NUM_GENS, stats=stats, halloffame=hof, verbose=True)
-
         #algorithms.eaSimple(pop, toolbox, cxpb=0.25, mutpb=0.5, ngen=NUM_GENS, stats=stats, halloffame=hof, verbose=True)
     finally: 
+        #1 == 1
         PIC_new = numpy.zeros((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
         for i in range(0, SWATCH_NUM_PIXELS_HEIGHT):
             for j in range (0, SWATCH_NUM_PIXELS_WIDTH):
                 PIC_new[i][j] = numpy.array([hof[0][SWATCH_NUM_PIXELS_HEIGHT * i + j],hof[0][SWATCH_NUM_PIXELS_HEIGHT * i + j], hof[0][SWATCH_NUM_PIXELS_HEIGHT * i + j]])
 
-        #for tri in hof[0]:
-        #    for i in range(0, SWATCH_NUM_PIXELS_HEIGHT):
-        #        for j in range (0, SWATCH_NUM_PIXELS_WIDTH):
-        #            PIC_new[i][j] = numpy.array([tri[individual[SWATCH_NUM_PIXELS_HEIGHT * i + SWATCH_NUM_PIXELS_WIDTH * j], tri[individual[SWATCH_NUM_PIXELS_HEIGHT * i + SWATCH_NUM_PIXELS_WIDTH * j], tri[individual[SWATCH_NUM_PIXELS_HEIGHT * i + SWATCH_NUM_PIXELS_WIDTH * j]])
         cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_FINAL.png', PIC_new)
         
-    #save images as history rather than in situ
-    #for i in range(1, len(history.genealogy_history) + 1):
-    #    PIC_new = numpy.zeros((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
-
-    #    for tri in history.genealogy_history[i]:
-    #        PIC_new[tri[0]][tri[1]] = numpy.array([tri[2], tri[2], tri[2]])
-
     return pop, stats, hof
 
 if __name__ == "__main__":
