@@ -29,31 +29,40 @@ from deap import creator
 from deap import tools
 from _functools import partial
 
-# 0 for Translational, 1 for zoom, 2 for rotation
-option = 1 
+# a switch... 0 for Translational, 1 for zoom, 2 for rotation
+option = 0
 
-SWATCH_NUM_PIXELS_WIDTH = 12
-SWATCH_NUM_PIXELS_HEIGHT = 12
+# define the constraints of the swatch
+SWATCH_NUM_PIXELS_WIDTH = 9
+SWATCH_NUM_PIXELS_HEIGHT = 9
 
-background_width = 320
-background_height = 240
+# define the constrains of the background
+background_width = 30
+background_height = 30
 
-POPSIZE = 10
-NUM_GENS = 5000
-#x dimension of OF: -1 for min, 1 for max
-X_FUN = 1.0 
+POPSIZE = 10           # max number of individuals per generation
+NUM_GENS = 150000      # max number of generations
 
+# x dimension of OF: -1 for min, 1 for max
+X_FUN = -1.0 
+
+# for binary representations of Black and White (0,0,0) and (255,255,255)
 BLACK = 0
 WHITE = 255
 
-DELTA = 1 #num pixels translated
+DELTA = 1               # num pixels translated
 
-ts = time.time() 
-val = 0
+NUM_PIX = 1000          # 1 in 1000 individuals saved. 
+
+ts = time.time()        # create unique image directory
+val = 0                 # hack to keep track of generation number
+
 # OF of a white swatch moving on a black background 
-#BASELINE = calculateBaselineTranslationalAvg();
+# BASELINE = calculateBaselineTranslationalAvg();
 BASELINE = 0
 
+# For each pixel, with probability indpb flip a coin to assign a value
+# note that black -> black and white -> white 
 def mutFlipPix_refactored(individual, indpb):
     for i in xrange(len(individual)):
         if random.random() < indpb:
@@ -66,7 +75,7 @@ def mutFlipPix_refactored(individual, indpb):
     return individual,
 
 # Generate a random image represented as a (pixels_height, pixels_width, 3) ndarray. 
-# 50% black, 50% white
+# 50% black, 50% white (not independent pixel-coloring events)
 def genRandomImage(pixels_height, pixels_width):
     im_rep = numpy.zeros((pixels_height,pixels_width,3), numpy.uint8)
 
@@ -81,13 +90,13 @@ def genRandomImage(pixels_height, pixels_width):
     return im_rep
 
 # Generate a random image represented as a (pixels_height, pixels_width, 3) ndarray. 
-# 50% black, 50% white
+# Alternate rows of black pixels with rows of white pixels. 
 def genStripedImage(pixels_height, pixels_width):
     im_rep = numpy.zeros((pixels_height,pixels_width,3), numpy.uint8)
 
     for x in range (0, pixels_height):
         for y in range(0, pixels_width):
-            if (x % 3 == 0 or x % 4 == 0):
+            if (x % 2 == 0):
                 im_rep[x][y] = numpy.array([WHITE,WHITE,WHITE])
             else:
                 im_rep[x][y] = numpy.array([BLACK,BLACK,BLACK])
@@ -95,64 +104,71 @@ def genStripedImage(pixels_height, pixels_width):
     return im_rep
 
 
-#background is a 240x320 all-black image. 
-background = numpy.zeros((background_height,background_width,3), numpy.uint8)
-#background = genRandomImage(background_height, background_width)
-#background = genStripedImage(background_height, background_width)
+# background is a background_height x background_width sized-image. 
 
-#imshow(background)
-#show()
+# CHOOSE 1 of the three: all black, random, or striped
+# background = numpy.zeros((background_height,background_width,3), numpy.uint8)
+# background = genRandomImage(background_height, background_width)
+background = genStripedImage(background_height, background_width)
+
+# attribute generation
+# to generate the first individual, called SWATCH_NUM_PIXELS_WIDTH * SWATCH_NUM_PIXELS_HEIGHT times
 def gen_random_pixel_refactored(): 
     color = random.randint(0,1) # returns 0 or 1 for b or w 
     if (color == 1):
         color = WHITE
     return color 
 
+# Fitness Function assignment. Calls base.Fitness, bound to the evalMax function below
 creator.create("FitnessMax", base.Fitness, weights=(X_FUN,))
 creator.create("Individual", numpy.ndarray, fitness=creator.FitnessMax)
 
 toolbox = base.Toolbox() 
 history = tools.History()
 
+# DEAP setup.
+# attribute - random pixel (black or white)
+# individual - list of x*y pixels, first selected by calling attribute x*y times
+# population - type: list of individuals. 
 toolbox.register("attr", gen_random_pixel_refactored)
 toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr, n=SWATCH_NUM_PIXELS_WIDTH * SWATCH_NUM_PIXELS_HEIGHT)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
+# Given an individual, translate it across the background and return the average OF value as an (x,y) tuple
 def calculatedTranslationalAvg_refactored(individual):
-
+    # First definition of swatch -- empty. 3D Matrix. All pixels later defined. 
     swatch = numpy.empty((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
     
-    # test if xover is breaking the representation
+    # test if xover is breaking the representation by setting swatch to all grey 
     #for i in range(0,SWATCH_NUM_PIXELS_HEIGHT):
     #    for j in range(0,SWATCH_NUM_PIXELS_WIDTH):
     #        swatch[i][j] = numpy.array([100, 100, 100])
     
+    # Convert list of pixels (an individual) to a swatch (3D matrix)
     for i in range(0, SWATCH_NUM_PIXELS_HEIGHT):
         for j in range (0, SWATCH_NUM_PIXELS_WIDTH):
             swatch[i][j] = numpy.array([individual[SWATCH_NUM_PIXELS_HEIGHT * i + j],individual[SWATCH_NUM_PIXELS_HEIGHT * i + j], individual[SWATCH_NUM_PIXELS_HEIGHT * i + j]])
 
     xFlowTotal = 0 
     yFlowTotal = 0    
-
-    global val 
-    val = val + 1
-
-    if (val == 1):
-        os.makedirs('./Images/' + str(ts)[0:10] )
-
-    cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_' + str(val) + '.png', swatch)
-
-
-    #for k in range(0, background_width - SWATCH_NUM_PIXELS_WIDTH):
-    # TEMPORARY: ARBITRARY MIDDLE OF IMAGE 
-    for k in range(50, 53):    
+    trials = 0 
+    # SHOULD BE: 
+    # for k in range(0, background_width - SWATCH_NUM_PIXELS_WIDTH):
+    
+    # TEMPORARILY: one-pixel change for quick testing.  
+    for k in range(10, 11):  
+        trials = trials + 1
+        # create prev_im_rep, with the swatch at position k in the x dimension  
         prev_im_rep = background.copy()
 
         prev_im_rep[background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2:
                 background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2 + SWATCH_NUM_PIXELS_HEIGHT, 
                 k:SWATCH_NUM_PIXELS_WIDTH+k] = swatch
 
+        # update position information
         k = k + DELTA
+
+        # create im_rep_next, with the swatch at position k + DELTA in the x dimension  
         im_rep_next = background.copy()
         im_rep_next[background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2:
                 background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2 + SWATCH_NUM_PIXELS_HEIGHT, 
@@ -170,7 +186,18 @@ def calculatedTranslationalAvg_refactored(individual):
         xFlowTotal += total[0] / (background.shape[0]*background.shape[1])
         yFlowTotal += total[1] / (background.shape[0]*background.shape[1])
 
-    return xFlowTotal/k - BASELINE#, yFlowTotal/k)
+    # hack to see which generation we're on. val is set to 0 as start up, 
+    global val 
+    val = val + 1
+    # when val is first incremented, we create a directory. 
+    if (val == 1):
+        os.makedirs('./Images/' + str(ts)[0:10] )
+    # for every NUM_PIX image generated from then on, we save that image 
+    if (val % NUM_PIX == 0):
+        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_' + str(val) + '.png', prev_im_rep)
+
+    # return tuple of average OF 
+    return (xFlowTotal/trials, yFlowTotal/trials)
 
 # this function returns the average value of the optical flow
 def getAverageOpticalFlow(prev_frame, next_frame):
@@ -212,12 +239,6 @@ def getZoomOpticalFlow(prev_frame, next_frame):
             midpoint = ((2*j+1)*prev_frame.shape[1]/6, (2*i+1)*prev_frame.shape[0]/6, )
             flowpoint = (midpoint[0] + int(frame_flow[i][j][0]*flowscale), midpoint[1] + int(frame_flow[i][j][1]*flowscale))
 
-            # midpoint = (midpoint[1], midpoint[0])
-            # flowpoint = (flowpoint[1], flowpoint[0])
-
-            #draw the flow to our visualizer
-            #cv2.line(im_rep, midpoint, flowpoint, (0,255,0),1)
-
     # create vectors to the center point from the center of the 9 frames
     center = (prev_frame.shape[0]/2, prev_frame.shape[1]/2)
     tl_center = (1*prev_frame.shape[0]/6, 1*prev_frame.shape[1]/6)
@@ -256,22 +277,24 @@ def calculatedZoomAvg(individual):
     #imshow(prev_im_rep)
     #show()  
 
+    # hack to keep track of generation + picture number
     global val 
     val = val + 1
-    # print each Swatch
+    # first time running code, create directory
     if (val == 1):
         os.makedirs('./Images/' + str(ts)[0:10] )
+    # print NUM_PIXth Swatch
+    if (val % NUM_PIX == 0):
+        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_' + str(val) + '.png', swatch)
 
-    cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_' + str(val) + '.png', swatch)
-
-        # ZOOM
+    # ZOOM
     #----------------------------------------------------------------------
     # zoom the image a pixel in size
 
     ## ARE THESE INDEXED CORRECTLY??? 
     # square so doesn't matter for now
-    i_x = 200
-    i_y = 200
+    i_x = 10
+    i_y = 10
 
     dim = (i_x, i_y)
 
@@ -286,8 +309,8 @@ def calculatedZoomAvg(individual):
     prev_im_rep[left:right, top:bottom] = swatch1
 
 
-    i_x = i_x + 20   #increment 2 pixels so the canvas grows a pixel around each frame
-    i_y = i_y + 20 
+    i_x = i_x + 10   #increment 2 pixels so the canvas grows a pixel around each frame
+    i_y = i_y + 10 
     dim = (i_x, i_y)
      
     # perform the actual resizing of the image and show it
@@ -309,14 +332,15 @@ def calculatedZoomAvg(individual):
     zoom_val = getZoomOpticalFlow(prv, nxt)
     return zoom_val
 
-
+# TO-DO 
 def calculatedRotAvg(individual):
     return 0
 
 # Returns the longitudinal OF, vertical OF, for fitness calculations
+# depending on which 'option' is set 
 def evalMax(individual):
     if (option == 0):
-        h = calculatedTranslationalAvg_refactored(individual)
+        (h,w) = calculatedTranslationalAvg_refactored(individual)
     elif (option == 1):
         h = calculatedZoomAvg(individual)
     else:
@@ -368,16 +392,28 @@ def main():
     stats.register("max", numpy.max)
 
     try: 
+        # take 3 best individuals per generation, create up to POPSIZE more 
+        # mutate with prob mutpb
+        # cross-over with prob cxpb
         algorithms.eaMuPlusLambda(pop, toolbox, mu=3, lambda_=POPSIZE, cxpb=0.25, mutpb=0.5, ngen=NUM_GENS, stats=stats, halloffame=hof, verbose=True)
         #algorithms.eaSimple(pop, toolbox, cxpb=0.25, mutpb=0.5, ngen=NUM_GENS, stats=stats, halloffame=hof, verbose=True)
     finally: 
-        #1 == 1
+        # print the final picture
+        prev_im_rep = background.copy()
+
+        # get the swatch from the hall of fame
         PIC_new = numpy.zeros((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
         for i in range(0, SWATCH_NUM_PIXELS_HEIGHT):
             for j in range (0, SWATCH_NUM_PIXELS_WIDTH):
                 PIC_new[i][j] = numpy.array([hof[0][SWATCH_NUM_PIXELS_HEIGHT * i + j],hof[0][SWATCH_NUM_PIXELS_HEIGHT * i + j], hof[0][SWATCH_NUM_PIXELS_HEIGHT * i + j]])
 
-        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_FINAL.png', PIC_new)
+        # overlay the swatch on the background
+        prev_im_rep[background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2:
+                background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2 + SWATCH_NUM_PIXELS_HEIGHT, 
+                10:SWATCH_NUM_PIXELS_WIDTH+10] = PIC_new
+
+        #save
+        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_FINAL.png', prev_im_rep)
         
     return pop, stats, hof
 
