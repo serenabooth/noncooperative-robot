@@ -41,7 +41,7 @@ background_width = 30
 background_height = 30
 
 POPSIZE = 10           # max number of individuals per generation
-NUM_GENS = 150000      # max number of generations
+NUM_GENS = 20000      # max number of generations
 
 # x dimension of OF: -1 for min, 1 for max
 X_FUN = -1.0 
@@ -52,7 +52,7 @@ WHITE = 255
 
 DELTA = 1               # num pixels translated
 
-NUM_PIX = 1000          # 1 in 1000 individuals saved. 
+NUM_PIX = 10000          # 1 in 1000 individuals saved. 
 
 ts = time.time()        # create unique image directory
 val = 0                 # hack to keep track of generation number
@@ -108,8 +108,8 @@ def genStripedImage(pixels_height, pixels_width):
 
 # CHOOSE 1 of the three: all black, random, or striped
 # background = numpy.zeros((background_height,background_width,3), numpy.uint8)
-# background = genRandomImage(background_height, background_width)
-background = genStripedImage(background_height, background_width)
+background = genRandomImage(background_height, background_width)
+#background = genStripedImage(background_height, background_width)
 
 # attribute generation
 # to generate the first individual, called SWATCH_NUM_PIXELS_WIDTH * SWATCH_NUM_PIXELS_HEIGHT times
@@ -153,10 +153,10 @@ def calculatedTranslationalAvg_refactored(individual):
     yFlowTotal = 0    
     trials = 0 
     # SHOULD BE: 
-    # for k in range(0, background_width - SWATCH_NUM_PIXELS_WIDTH):
+    for k in range(0, background_width - SWATCH_NUM_PIXELS_WIDTH):
     
     # TEMPORARILY: one-pixel change for quick testing.  
-    for k in range(10, 11):  
+    #for k in range(10, 11):  
         trials = trials + 1
         # create prev_im_rep, with the swatch at position k in the x dimension  
         prev_im_rep = background.copy()
@@ -192,9 +192,10 @@ def calculatedTranslationalAvg_refactored(individual):
     # when val is first incremented, we create a directory. 
     if (val == 1):
         os.makedirs('./Images/' + str(ts)[0:10] )
+        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_BACKGROUND.png', background)
     # for every NUM_PIX image generated from then on, we save that image 
     if (val % NUM_PIX == 0):
-        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_' + str(val) + '.png', prev_im_rep)
+        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_' + str(val) + '.png', swatch)
 
     # return tuple of average OF 
     return (xFlowTotal/trials, yFlowTotal/trials)
@@ -283,6 +284,8 @@ def calculatedZoomAvg(individual):
     # first time running code, create directory
     if (val == 1):
         os.makedirs('./Images/' + str(ts)[0:10] )
+        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_BACKGROUND.png', background)
+
     # print NUM_PIXth Swatch
     if (val % NUM_PIX == 0):
         cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_' + str(val) + '.png', swatch)
@@ -413,7 +416,7 @@ def main():
                 10:SWATCH_NUM_PIXELS_WIDTH+10] = PIC_new
 
         #save
-        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_FINAL.png', prev_im_rep)
+        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_FINAL.png', PIC_new)
         
     return pop, stats, hof
 
