@@ -347,11 +347,120 @@ def calculatedZoomAvg(individual):
     zoom_val = getZoomOpticalFlow(prv, nxt)
     return zoom_val
 
+# this function splits up images into 9 subimages to determine optical flow on
+# after determining optical flow, of the 9 images, it computes a value of zoom
+# based on the opposing vectors
+def getRotationalOpticalFlow(prev_frame, next_frame):
+
+    flow_rep = background.copy()
+    
+    # store flow for each frame
+    frame_flow = [[0,0,0],[0,0,0],[0,0,0]]
+
+    # scale the optic flow to show up...
+    flowscale = 10
+
+    # split into 9 frames
+    for i in range(0,3):
+        for j in range(0,3):
+            left = j*prev_frame.shape[0]/3
+            right = (j+1)*prev_frame.shape[0]/3
+            top = i*prev_frame.shape[1]/3
+            bottom = (i+1)*prev_frame.shape[1]/3
+
+            sub_prev_frame = prev_frame[left:right, top:bottom]
+            sub_next_frame = next_frame[left:right, top:bottom]
+
+            #check optical flow for subframe
+            frame_flow[i][j] = getAverageOpticalFlow(sub_prev_frame, sub_next_frame)
+            
+            midpoint = ((2*j+1)*prev_frame.shape[1]/6, (2*i+1)*prev_frame.shape[0]/6, )
+            flowpoint = (midpoint[0] + int(frame_flow[i][j][0]*flowscale), midpoint[1] + int(frame_flow[i][j][1]*flowscale))
+
+            # midpoint = (midpoint[1], midpoint[0])
+            # flowpoint = (flowpoint[1], flowpoint[0])
+
+            #draw the flow to our visualizer
+            cv2.line(flow_rep, midpoint, flowpoint, (0,255,0),1)
+
+    # create vectors to the center point from the center of the 9 frames
+    tl_center = (1*prev_frame.shape[0]/6, 1*prev_frame.shape[1]/6)
+    t_center  = (3*prev_frame.shape[0]/6, 1*prev_frame.shape[1]/6)
+    tr_center = (5*prev_frame.shape[0]/6, 1*prev_frame.shape[1]/6)
+    r_center  = (5*prev_frame.shape[0]/6, 3*prev_frame.shape[1]/6)
+    br_center = (5*prev_frame.shape[0]/6, 5*prev_frame.shape[1]/6)
+    b_center  = (3*prev_frame.shape[0]/6, 5*prev_frame.shape[1]/6)
+    bl_center = (1*prev_frame.shape[0]/6, 5*prev_frame.shape[1]/6)
+    l_center  = (1*prev_frame.shape[0]/6, 3*prev_frame.shape[1]/6)
+
+    # look at all values and take the cross product with a vector to the center
+    tl = np.cross(tl_center, frame_flow[0][0])
+    t  = np.cross(t_center,  frame_flow[0][1])
+    tr = np.cross(tr_center, frame_flow[0][2])
+    r  = np.cross(r_center,  frame_flow[1][2])
+    br = np.cross(br_center, frame_flow[2][2])
+    b  = np.cross(b_center,  frame_flow[2][1])
+    bl = np.cross(bl_center, frame_flow[2][0])
+    l  = np.cross(l_center,  frame_flow[1][0])
+
+    return tl + t + tr + r + br + b + bl + l
+
 # TO-DO 
 def calculatedRotAvg(individual):
-    return 0
+    im_rep = background.copy()
+    prev_im_rep = background.copy()
 
-# Returns the longitudinal OF, vertical OF, for fitness calculations
+    swatch = numpy.empty((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
+    
+    for i in range(0, SWATCH_NUM_PIXELS_HEIGHT):
+        for j in range (0, SWATCH_NUM_PIXELS_WIDTH):
+            swatch[i][j] = numpy.array([individual[SWATCH_NUM_PIXELS_HEIGHT * i + j],individual[SWATCH_NUM_PIXELS_HEIGHT * i + j], individual[SWATCH_NUM_PIXELS_HEIGHT * i + j]])
+
+    # rotate the swatch
+    # grab the dimensions of the image and calculate the center
+    # of the image
+    (h, w) = swatch.shape[:2]
+    center = (w / 2, h / 2)
+
+    i = 0; 
+
+    # rotate the image by 180 degrees
+    M = cv2.getRotationMatrix2D(center, i, 1.0)
+    swatch_rotated = cv2.warpAffine(swatch, M, (w, h))
+
+    # replace a portion of the array with the swatch
+    y_pos = background_height/2 - swatch_rotated.shape[0]/2
+    x_pos = background_width/2 - swatch_rotated.shape[1]/2
+    prev_im_rep[y_pos:y_pos+swatch_rotated.shape[1], x_pos:x_pos + swatch_rotated.shape[0]] = swatch_rotated
+    
+    # move the image i pixels to the right
+    # TEMP: do this only once! 
+    i = i + 10
+    #if i >= 360:
+    #    i = 0
+
+    # rotate the image by 180 degrees
+    M = cv2.getRotationMatrix2D(center, i, 1.0)
+    swatch_rotated = cv2.warpAffine(swatch, M, (w, h))
+
+    # replace a portion of the array with the swatch
+    y_pos = background_height/2 - swatch_rotated.shape[0]/2
+    x_pos = background_width/2 - swatch_rotated.shape[1]/2
+    im_rep[y_pos:y_pos+swatch_rotated.shape[1], x_pos:x_pos + swatch_rotated.shape[0]] = swatch_rotated
+    
+    # make CV happy with grayscale images for previous and next frames
+    prv = cv2.cvtColor(prev_im_rep, cv2.COLOR_BGR2GRAY)
+    nxt = cv2.cvtColor(im_rep, cv2.COLOR_BGR2GRAY) 
+
+    # calculate optical flow
+    flow = cv2.calcOpticalFlowFarneback(prv, nxt, 0.5, 4, 8, 2, 7, 1.5, cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
+    
+    zoom_val = getRotationalOpticalFlow(prv, nxt)
+
+
+    return zoom_val
+
+# Returns the computed OF value for fitness calculations
 # depending on which 'option' is set 
 def evalMax(individual):
     if (option == 0):
