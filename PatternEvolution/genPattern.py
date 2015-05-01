@@ -41,10 +41,10 @@ background_width = 30
 background_height = 30
 
 POPSIZE = 10           # max number of individuals per generation
-NUM_GENS = 20000      # max number of generations
+NUM_GENS = 300000      # max number of generations
 
 # x dimension of OF: -1 for min, 1 for max
-X_FUN = -1.0 
+X_FUN = 1.0 
 
 # for binary representations of Black and White (0,0,0) and (255,255,255)
 BLACK = 0
@@ -107,8 +107,8 @@ def genStripedImage(pixels_height, pixels_width):
 # background is a background_height x background_width sized-image. 
 
 # CHOOSE 1 of the three: all black, random, or striped
-# background = numpy.zeros((background_height,background_width,3), numpy.uint8)
-background = genRandomImage(background_height, background_width)
+background = numpy.zeros((background_height,background_width,3), numpy.uint8)
+#background = genRandomImage(background_height, background_width)
 #background = genStripedImage(background_height, background_width)
 
 # attribute generation
@@ -192,10 +192,10 @@ def calculatedTranslationalAvg_refactored(individual):
     # when val is first incremented, we create a directory. 
     if (val == 1):
         os.makedirs('./Images/' + str(ts)[0:10] )
-        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_BACKGROUND.png', background)
+        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_trans_BACKGROUND.png', background)
     # for every NUM_PIX image generated from then on, we save that image 
     if (val % NUM_PIX == 0):
-        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_' + str(val) + '.png', swatch)
+        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_trans_' + str(val) + '.png', swatch)
 
     # return tuple of average OF 
     return (xFlowTotal/trials, yFlowTotal/trials)
@@ -284,11 +284,11 @@ def calculatedZoomAvg(individual):
     # first time running code, create directory
     if (val == 1):
         os.makedirs('./Images/' + str(ts)[0:10] )
-        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_BACKGROUND.png', background)
+        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_zoom_BACKGROUND.png', background)
 
     # print NUM_PIXth Swatch
     if (val % NUM_PIX == 0):
-        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_' + str(val) + '.png', swatch)
+        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_zoom_' + str(val) + '.png', swatch)
 
     # ZOOM
     #----------------------------------------------------------------------
