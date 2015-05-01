@@ -29,19 +29,31 @@ from deap import creator
 from deap import tools
 from _functools import partial
 
+import argparse
+
+# options parser to set all of these variables from the command line
+parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument('--mode', type=int, default=0)
+parser.add_argument('--swatchSize', default=9)
+parser.add_argument('--backgroundWidth', default=30)
+parser.add_argument('--backgroundHeight', default=30)
+parser.add_argument('--popSize', default=10)
+parser.add_argument('--numGens', default=20000)
+args = parser.parse_args()
+
 # a switch... 0 for Translational, 1 for zoom, 2 for rotation
-option = 0
+option = args.mode
 
 # define the constraints of the swatch
-SWATCH_NUM_PIXELS_WIDTH = 9
-SWATCH_NUM_PIXELS_HEIGHT = 9
+SWATCH_NUM_PIXELS_WIDTH = args.swatchSize
+SWATCH_NUM_PIXELS_HEIGHT = args.swatchSize
 
 # define the constrains of the background
-background_width = 30
-background_height = 30
+background_width = args.backgroundWidth
+background_height = args.backgroundHeight
 
-POPSIZE = 10           # max number of individuals per generation
-NUM_GENS = 300000      # max number of generations
+POPSIZE = args.popSize       # max number of individuals per generation
+NUM_GENS = args.numGens      # max number of generations
 
 # x dimension of OF: -1 for min, 1 for max
 X_FUN = 1.0 
