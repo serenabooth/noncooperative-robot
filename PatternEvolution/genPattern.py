@@ -39,6 +39,7 @@ parser.add_argument('--backgroundWidth', default=30)
 parser.add_argument('--backgroundHeight', default=30)
 parser.add_argument('--popSize', default=10)
 parser.add_argument('--numGens', default=20000)
+parser.add_argument('--backgroundType', default=0)
 args = parser.parse_args()
 
 # a switch... 0 for Translational, 1 for zoom, 2 for rotation
@@ -72,6 +73,9 @@ val = 0                 # hack to keep track of generation number
 # OF of a white swatch moving on a black background 
 # BASELINE = calculateBaselineTranslationalAvg();
 BASELINE = 0
+
+# 0 for all black, 1 for striped, 2 for random
+chooseBackground = args.backgroundType
 
 # For each pixel, with probability indpb flip a coin to assign a value
 # note that black -> black and white -> white 
@@ -119,9 +123,12 @@ def genStripedImage(pixels_height, pixels_width):
 # background is a background_height x background_width sized-image. 
 
 # CHOOSE 1 of the three: all black, random, or striped
-background = numpy.zeros((background_height,background_width,3), numpy.uint8)
-#background = genRandomImage(background_height, background_width)
-#background = genStripedImage(background_height, background_width)
+if (chooseBackground == 0):
+    background = numpy.zeros((background_height,background_width,3), numpy.uint8)
+elif (chooseBackground == 1):
+    background = genRandomImage(background_height, background_width)
+elif (chooseBackground == 2):
+    background = genStripedImage(background_height, background_width)
 
 # attribute generation
 # to generate the first individual, called SWATCH_NUM_PIXELS_WIDTH * SWATCH_NUM_PIXELS_HEIGHT times
@@ -204,7 +211,16 @@ def calculatedTranslationalAvg_refactored(individual):
     # when val is first incremented, we create a directory. 
     if (val == 1):
         os.makedirs('./Images/' + str(ts)[0:10] )
+        f = open('./Images/' + str(ts)[0:10] + '/parameters.txt', 'w')
+        f.write("Mode (0 trans, 1 zoom, 2 rotate): " + str(option) + '\n')
+        f.write("Swatch Size:" + str(SWATCH_NUM_PIXELS_HEIGHT) + 'by' + str(SWATCH_NUM_PIXELS_WIDTH) + '\n')
+        f.write("Background Size:" + str(background_height) + 'by' + str(background_width) + '\n')
+        f.write("Background Type (0 black, 1 striped, 2 random):" + str(chooseBackground) + '\n')
+        f.write("Popsize:" + str(POPSIZE) + '\n')
+        f.write("Number of generations:" + str(NUM_GENS) + '\n')
+        f.write("Min or max:" + str(X_FUN))
         cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_trans_BACKGROUND.png', background)
+
     # for every NUM_PIX image generated from then on, we save that image 
     if (val % NUM_PIX == 0):
         cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_trans_' + str(val) + '.png', swatch)
@@ -296,6 +312,14 @@ def calculatedZoomAvg(individual):
     # first time running code, create directory
     if (val == 1):
         os.makedirs('./Images/' + str(ts)[0:10] )
+        f = open('./Images/' + str(ts)[0:10] + '/parameters.txt', 'w')
+        f.write("Mode (0 trans, 1 zoom, 2 rotate): " + str(option) + '\n')
+        f.write("Swatch Size:" + str(SWATCH_NUM_PIXELS_HEIGHT) + 'by' + str(SWATCH_NUM_PIXELS_WIDTH) + '\n')
+        f.write("Background Size:" + str(background_height) + 'by' + str(background_width) + '\n')
+        f.write("Background Type (0 black, 1 striped, 2 random):" + str(chooseBackground) + '\n')
+        f.write("Popsize:" + str(POPSIZE) + '\n')
+        f.write("Number of generations:" + str(NUM_GENS) + '\n')
+        f.write("Min or max:" + str(X_FUN))
         cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_zoom_BACKGROUND.png', background)
 
     # print NUM_PIXth Swatch
@@ -455,6 +479,26 @@ def calculatedRotAvg(individual):
     # calculate optical flow
     flow = cv2.calcOpticalFlowFarneback(prv, nxt, 0.5, 4, 8, 2, 7, 1.5, cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
     
+    # hack to keep track of generation + picture number
+    global val 
+    val = val + 1
+    # first time running code, create directory
+    if (val == 1):
+        os.makedirs('./Images/' + str(ts)[0:10] )
+        f = open('./Images/' + str(ts)[0:10] + '/parameters.txt', 'w')
+        f.write("Mode (0 trans, 1 zoom, 2 rotate): " + str(option) + '\n')
+        f.write("Swatch Size:" + str(SWATCH_NUM_PIXELS_HEIGHT) + 'by' + str(SWATCH_NUM_PIXELS_WIDTH) + '\n')
+        f.write("Background Size:" + str(background_height) + 'by' + str(background_width) + '\n')
+        f.write("Background Type (0 black, 1 striped, 2 random):" + str(chooseBackground) + '\n')
+        f.write("Popsize:" + str(POPSIZE) + '\n')
+        f.write("Number of generations:" + str(NUM_GENS) + '\n')
+        f.write("Min or max:" + str(X_FUN))
+        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_zoom_BACKGROUND.png', background)
+
+    # print NUM_PIXth Swatch
+    if (val % NUM_PIX == 0):
+        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_zoom_' + str(val) + '.png', swatch)
+
     zoom_val = getRotationalOpticalFlow(prv, nxt)
 
 
