@@ -40,6 +40,7 @@ parser.add_argument('--backgroundHeight', default=30)
 parser.add_argument('--popSize', default=10)
 parser.add_argument('--numGens', default=20000)
 parser.add_argument('--backgroundType', default=0)
+parser.add_argument('--random', default=64)
 args = parser.parse_args()
 
 # a switch... 0 for Translational, 1 for zoom, 2 for rotation
@@ -55,6 +56,10 @@ background_height = args.backgroundHeight
 
 POPSIZE = args.popSize       # max number of individuals per generation
 NUM_GENS = args.numGens      # max number of generations
+
+seed = args.random
+random.seed(seed)
+
 
 # x dimension of OF: -1 for min, 1 for max
 X_FUN = 1.0 
@@ -129,6 +134,8 @@ elif (chooseBackground == 1):
     background = genRandomImage(background_height, background_width)
 elif (chooseBackground == 2):
     background = genStripedImage(background_height, background_width)
+else:
+    background = cv2.imread('traffic_bw.jpg')
 
 # attribute generation
 # to generate the first individual, called SWATCH_NUM_PIXELS_WIDTH * SWATCH_NUM_PIXELS_HEIGHT times
@@ -218,7 +225,12 @@ def calculatedTranslationalAvg_refactored(individual):
         f.write("Background Type (0 black, 1 striped, 2 random):" + str(chooseBackground) + '\n')
         f.write("Popsize:" + str(POPSIZE) + '\n')
         f.write("Number of generations:" + str(NUM_GENS) + '\n')
-        f.write("Min or max:" + str(X_FUN))
+        f.write("Min or max:" + str(X_FUN) + '\n')
+        f.write("Random seed:" + str(seed) + '\n')
+        f.write("y_cood of motion:" + str(background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2))
+        f.write("x_cood of motion (range):" + str(0) + "-" + str(background_width - SWATCH_NUM_PIXELS_WIDTH))
+
+
         cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_trans_BACKGROUND.png', background)
 
     # for every NUM_PIX image generated from then on, we save that image 
@@ -319,7 +331,9 @@ def calculatedZoomAvg(individual):
         f.write("Background Type (0 black, 1 striped, 2 random):" + str(chooseBackground) + '\n')
         f.write("Popsize:" + str(POPSIZE) + '\n')
         f.write("Number of generations:" + str(NUM_GENS) + '\n')
-        f.write("Min or max:" + str(X_FUN))
+        f.write("Min or max:" + str(X_FUN) + '\n')
+        f.write("Random seed:" + str(seed) + '\n')
+
         cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_zoom_BACKGROUND.png', background)
 
     # print NUM_PIXth Swatch
@@ -492,7 +506,9 @@ def calculatedRotAvg(individual):
         f.write("Background Type (0 black, 1 striped, 2 random):" + str(chooseBackground) + '\n')
         f.write("Popsize:" + str(POPSIZE) + '\n')
         f.write("Number of generations:" + str(NUM_GENS) + '\n')
-        f.write("Min or max:" + str(X_FUN))
+        f.write("Min or max:" + str(X_FUN) + '\n')
+        f.write("Random seed:" + str(seed) + '\n')
+
         cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_zoom_BACKGROUND.png', background)
 
     # print NUM_PIXth Swatch
@@ -540,8 +556,6 @@ toolbox.decorate("mate", history.decorator)
 toolbox.decorate("mutate", history.decorator)
 
 def main():
-    random.seed(64)
-    
     pop = toolbox.population(n=POPSIZE)
 
     # Create the population and populate the history
