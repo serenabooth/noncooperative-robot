@@ -39,6 +39,8 @@ parser.add_argument('--backgroundWidth', default=30)
 parser.add_argument('--backgroundHeight', default=30)
 parser.add_argument('--popSize', default=10)
 parser.add_argument('--numGens', default=20000)
+parser.add_argument('--backgroundType', default=0)
+parser.add_argument('--random', default=64)
 args = parser.parse_args()
 
 # a switch... 0 for Translational, 1 for zoom, 2 for rotation
@@ -55,8 +57,12 @@ background_height = args.backgroundHeight
 POPSIZE = args.popSize       # max number of individuals per generation
 NUM_GENS = args.numGens      # max number of generations
 
+seed = args.random
+random.seed(seed)
+
+
 # x dimension of OF: -1 for min, 1 for max
-X_FUN = -1.0 
+X_FUN = 1.0 
 
 # for binary representations of Black and White (0,0,0) and (255,255,255)
 BLACK = 0
@@ -72,6 +78,9 @@ val = 0                 # hack to keep track of generation number
 # OF of a white swatch moving on a black background 
 # BASELINE = calculateBaselineTranslationalAvg();
 BASELINE = 0
+
+# 0 for all black, 1 for striped, 2 for random
+chooseBackground = args.backgroundType
 
 # For each pixel, with probability indpb flip a coin to assign a value
 # note that black -> black and white -> white 
@@ -119,9 +128,14 @@ def genStripedImage(pixels_height, pixels_width):
 # background is a background_height x background_width sized-image. 
 
 # CHOOSE 1 of the three: all black, random, or striped
-# background = numpy.zeros((background_height,background_width,3), numpy.uint8)
-background = genRandomImage(background_height, background_width)
-#background = genStripedImage(background_height, background_width)
+if (chooseBackground == 0):
+    background = numpy.zeros((background_height,background_width,3), numpy.uint8)
+elif (chooseBackground == 1):
+    background = genRandomImage(background_height, background_width)
+elif (chooseBackground == 2):
+    background = genStripedImage(background_height, background_width)
+else:
+    background = cv2.imread('traffic_bw.jpg')
 
 # attribute generation
 # to generate the first individual, called SWATCH_NUM_PIXELS_WIDTH * SWATCH_NUM_PIXELS_HEIGHT times
@@ -204,10 +218,24 @@ def calculatedTranslationalAvg_refactored(individual):
     # when val is first incremented, we create a directory. 
     if (val == 1):
         os.makedirs('./Images/' + str(ts)[0:10] )
-        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_BACKGROUND.png', background)
+        f = open('./Images/' + str(ts)[0:10] + '/parameters.txt', 'w')
+        f.write("Mode (0 trans, 1 zoom, 2 rotate): " + str(option) + '\n')
+        f.write("Swatch Size:" + str(SWATCH_NUM_PIXELS_HEIGHT) + 'by' + str(SWATCH_NUM_PIXELS_WIDTH) + '\n')
+        f.write("Background Size:" + str(background_height) + 'by' + str(background_width) + '\n')
+        f.write("Background Type (0 black, 1 striped, 2 random):" + str(chooseBackground) + '\n')
+        f.write("Popsize:" + str(POPSIZE) + '\n')
+        f.write("Number of generations:" + str(NUM_GENS) + '\n')
+        f.write("Min or max:" + str(X_FUN) + '\n')
+        f.write("Random seed:" + str(seed) + '\n')
+        f.write("y_cood of motion:" + str(background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2))
+        f.write("x_cood of motion (range):" + str(0) + "-" + str(background_width - SWATCH_NUM_PIXELS_WIDTH))
+
+
+        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_trans_BACKGROUND.png', background)
+
     # for every NUM_PIX image generated from then on, we save that image 
     if (val % NUM_PIX == 0):
-        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_' + str(val) + '.png', swatch)
+        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_trans_' + str(val) + '.png', swatch)
 
     # return tuple of average OF 
     return (xFlowTotal/trials, yFlowTotal/trials)
@@ -296,11 +324,21 @@ def calculatedZoomAvg(individual):
     # first time running code, create directory
     if (val == 1):
         os.makedirs('./Images/' + str(ts)[0:10] )
-        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_BACKGROUND.png', background)
+        f = open('./Images/' + str(ts)[0:10] + '/parameters.txt', 'w')
+        f.write("Mode (0 trans, 1 zoom, 2 rotate): " + str(option) + '\n')
+        f.write("Swatch Size:" + str(SWATCH_NUM_PIXELS_HEIGHT) + 'by' + str(SWATCH_NUM_PIXELS_WIDTH) + '\n')
+        f.write("Background Size:" + str(background_height) + 'by' + str(background_width) + '\n')
+        f.write("Background Type (0 black, 1 striped, 2 random):" + str(chooseBackground) + '\n')
+        f.write("Popsize:" + str(POPSIZE) + '\n')
+        f.write("Number of generations:" + str(NUM_GENS) + '\n')
+        f.write("Min or max:" + str(X_FUN) + '\n')
+        f.write("Random seed:" + str(seed) + '\n')
+
+        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_zoom_BACKGROUND.png', background)
 
     # print NUM_PIXth Swatch
     if (val % NUM_PIX == 0):
-        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_' + str(val) + '.png', swatch)
+        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_zoom_' + str(val) + '.png', swatch)
 
     # ZOOM
     #----------------------------------------------------------------------
@@ -347,11 +385,142 @@ def calculatedZoomAvg(individual):
     zoom_val = getZoomOpticalFlow(prv, nxt)
     return zoom_val
 
+# this function splits up images into 9 subimages to determine optical flow on
+# after determining optical flow, of the 9 images, it computes a value of zoom
+# based on the opposing vectors
+def getRotationalOpticalFlow(prev_frame, next_frame):
+
+    flow_rep = background.copy()
+    
+    # store flow for each frame
+    frame_flow = [[0,0,0],[0,0,0],[0,0,0]]
+
+    # scale the optic flow to show up...
+    flowscale = 10
+
+    # split into 9 frames
+    for i in range(0,3):
+        for j in range(0,3):
+            left = j*prev_frame.shape[0]/3
+            right = (j+1)*prev_frame.shape[0]/3
+            top = i*prev_frame.shape[1]/3
+            bottom = (i+1)*prev_frame.shape[1]/3
+
+            sub_prev_frame = prev_frame[left:right, top:bottom]
+            sub_next_frame = next_frame[left:right, top:bottom]
+
+            #check optical flow for subframe
+            frame_flow[i][j] = getAverageOpticalFlow(sub_prev_frame, sub_next_frame)
+            
+            midpoint = ((2*j+1)*prev_frame.shape[1]/6, (2*i+1)*prev_frame.shape[0]/6, )
+            flowpoint = (midpoint[0] + int(frame_flow[i][j][0]*flowscale), midpoint[1] + int(frame_flow[i][j][1]*flowscale))
+
+            # midpoint = (midpoint[1], midpoint[0])
+            # flowpoint = (flowpoint[1], flowpoint[0])
+
+            #draw the flow to our visualizer
+            cv2.line(flow_rep, midpoint, flowpoint, (0,255,0),1)
+
+    # create vectors to the center point from the center of the 9 frames
+    tl_center = (1*prev_frame.shape[0]/6, 1*prev_frame.shape[1]/6)
+    t_center  = (3*prev_frame.shape[0]/6, 1*prev_frame.shape[1]/6)
+    tr_center = (5*prev_frame.shape[0]/6, 1*prev_frame.shape[1]/6)
+    r_center  = (5*prev_frame.shape[0]/6, 3*prev_frame.shape[1]/6)
+    br_center = (5*prev_frame.shape[0]/6, 5*prev_frame.shape[1]/6)
+    b_center  = (3*prev_frame.shape[0]/6, 5*prev_frame.shape[1]/6)
+    bl_center = (1*prev_frame.shape[0]/6, 5*prev_frame.shape[1]/6)
+    l_center  = (1*prev_frame.shape[0]/6, 3*prev_frame.shape[1]/6)
+
+    # look at all values and take the cross product with a vector to the center
+    tl = np.cross(tl_center, frame_flow[0][0])
+    t  = np.cross(t_center,  frame_flow[0][1])
+    tr = np.cross(tr_center, frame_flow[0][2])
+    r  = np.cross(r_center,  frame_flow[1][2])
+    br = np.cross(br_center, frame_flow[2][2])
+    b  = np.cross(b_center,  frame_flow[2][1])
+    bl = np.cross(bl_center, frame_flow[2][0])
+    l  = np.cross(l_center,  frame_flow[1][0])
+
+    return tl + t + tr + r + br + b + bl + l
+
 # TO-DO 
 def calculatedRotAvg(individual):
-    return 0
+    im_rep = background.copy()
+    prev_im_rep = background.copy()
 
-# Returns the longitudinal OF, vertical OF, for fitness calculations
+    swatch = numpy.empty((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
+    
+    for i in range(0, SWATCH_NUM_PIXELS_HEIGHT):
+        for j in range (0, SWATCH_NUM_PIXELS_WIDTH):
+            swatch[i][j] = numpy.array([individual[SWATCH_NUM_PIXELS_HEIGHT * i + j],individual[SWATCH_NUM_PIXELS_HEIGHT * i + j], individual[SWATCH_NUM_PIXELS_HEIGHT * i + j]])
+
+    # rotate the swatch
+    # grab the dimensions of the image and calculate the center
+    # of the image
+    (h, w) = swatch.shape[:2]
+    center = (w / 2, h / 2)
+
+    i = 0; 
+
+    # rotate the image by 180 degrees
+    M = cv2.getRotationMatrix2D(center, i, 1.0)
+    swatch_rotated = cv2.warpAffine(swatch, M, (w, h))
+
+    # replace a portion of the array with the swatch
+    y_pos = background_height/2 - swatch_rotated.shape[0]/2
+    x_pos = background_width/2 - swatch_rotated.shape[1]/2
+    prev_im_rep[y_pos:y_pos+swatch_rotated.shape[1], x_pos:x_pos + swatch_rotated.shape[0]] = swatch_rotated
+    
+    # move the image i pixels to the right
+    # TEMP: do this only once! 
+    i = i + 10
+    #if i >= 360:
+    #    i = 0
+
+    # rotate the image by 180 degrees
+    M = cv2.getRotationMatrix2D(center, i, 1.0)
+    swatch_rotated = cv2.warpAffine(swatch, M, (w, h))
+
+    # replace a portion of the array with the swatch
+    y_pos = background_height/2 - swatch_rotated.shape[0]/2
+    x_pos = background_width/2 - swatch_rotated.shape[1]/2
+    im_rep[y_pos:y_pos+swatch_rotated.shape[1], x_pos:x_pos + swatch_rotated.shape[0]] = swatch_rotated
+    
+    # make CV happy with grayscale images for previous and next frames
+    prv = cv2.cvtColor(prev_im_rep, cv2.COLOR_BGR2GRAY)
+    nxt = cv2.cvtColor(im_rep, cv2.COLOR_BGR2GRAY) 
+
+    # calculate optical flow
+    flow = cv2.calcOpticalFlowFarneback(prv, nxt, 0.5, 4, 8, 2, 7, 1.5, cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
+    
+    # hack to keep track of generation + picture number
+    global val 
+    val = val + 1
+    # first time running code, create directory
+    if (val == 1):
+        os.makedirs('./Images/' + str(ts)[0:10] )
+        f = open('./Images/' + str(ts)[0:10] + '/parameters.txt', 'w')
+        f.write("Mode (0 trans, 1 zoom, 2 rotate): " + str(option) + '\n')
+        f.write("Swatch Size:" + str(SWATCH_NUM_PIXELS_HEIGHT) + 'by' + str(SWATCH_NUM_PIXELS_WIDTH) + '\n')
+        f.write("Background Size:" + str(background_height) + 'by' + str(background_width) + '\n')
+        f.write("Background Type (0 black, 1 striped, 2 random):" + str(chooseBackground) + '\n')
+        f.write("Popsize:" + str(POPSIZE) + '\n')
+        f.write("Number of generations:" + str(NUM_GENS) + '\n')
+        f.write("Min or max:" + str(X_FUN) + '\n')
+        f.write("Random seed:" + str(seed) + '\n')
+
+        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_zoom_BACKGROUND.png', background)
+
+    # print NUM_PIXth Swatch
+    if (val % NUM_PIX == 0):
+        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_zoom_' + str(val) + '.png', swatch)
+
+    zoom_val = getRotationalOpticalFlow(prv, nxt)
+
+
+    return zoom_val
+
+# Returns the computed OF value for fitness calculations
 # depending on which 'option' is set 
 def evalMax(individual):
     if (option == 0):
@@ -387,8 +556,6 @@ toolbox.decorate("mate", history.decorator)
 toolbox.decorate("mutate", history.decorator)
 
 def main():
-    random.seed(64)
-    
     pop = toolbox.population(n=POPSIZE)
 
     # Create the population and populate the history
