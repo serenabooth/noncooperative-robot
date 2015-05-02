@@ -4,8 +4,8 @@ import cv2
 import random
 from pylab import imshow, show
 
-swatch_width = 50
-swatch_height = 50
+swatch_width = 150
+swatch_height = 150
 
 background_width = 320
 background_height = 240
@@ -44,7 +44,7 @@ for i in range(0,background_height):
 # this function returns the average value of the optical flow
 def getAverageOpticalFlow(prev_frame, next_frame):
 	# calculate optical flow
- 	flow = cv2.calcOpticalFlowFarneback(prv, nxt, 0.5, 4, 8, 2, 7, 1.5, cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
+ 	flow = cv2.calcOpticalFlowFarneback(prev_frame, next_frame, 0.5, 4, 8, 2, 7, 1.5, cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
 
  	# sum our optical flow and then get averages for x and y direction
 	total = cv2.sumElems(flow)
@@ -63,8 +63,9 @@ def getRotationalOpticalFlow(prev_frame, next_frame):
 	frame_flow = [[0,0,0],[0,0,0],[0,0,0]]
 
 	# scale the optic flow to show up...
-	flowscale = 10
+	flowscale = 100
 
+	# print "Flow"
 	# split into 9 frames
 	for i in range(0,3):
 		for j in range(0,3):
@@ -73,15 +74,19 @@ def getRotationalOpticalFlow(prev_frame, next_frame):
 			top = i*prev_frame.shape[1]/3
 			bottom = (i+1)*prev_frame.shape[1]/3
 
+			#print "bounds: (%d, %d, %d, %d)" % (left, right, top, bottom)
 			sub_prev_frame = prev_frame[left:right, top:bottom]
 			sub_next_frame = next_frame[left:right, top:bottom]
+			# print "subframe: (%d, %d)" % (sub_prev_frame.shape[0], sub_prev_frame.shape[1])
 
 			#check optical flow for subframe
 			frame_flow[i][j] = getAverageOpticalFlow(sub_prev_frame, sub_next_frame)
-			
+			#print "FrameFlow (%d, %d)" % (100*frame_flow[i][j][0], 100*frame_flow[i][j][1])
+
  			midpoint = ((2*j+1)*prev_frame.shape[1]/6, (2*i+1)*prev_frame.shape[0]/6, )
 			flowpoint = (midpoint[0] + int(frame_flow[i][j][0]*flowscale), midpoint[1] + int(frame_flow[i][j][1]*flowscale))
-
+			# print "MidPoint (%d, %d)" % (midpoint[0], midpoint[1])
+			# print "FlowPoint (%d, %d)" % (flowpoint[0], flowpoint[1])
 			# midpoint = (midpoint[1], midpoint[0])
 			# flowpoint = (flowpoint[1], flowpoint[0])
 
@@ -97,6 +102,18 @@ def getRotationalOpticalFlow(prev_frame, next_frame):
 	b_center  = (3*prev_frame.shape[0]/6, 5*prev_frame.shape[1]/6)
 	bl_center = (1*prev_frame.shape[0]/6, 5*prev_frame.shape[1]/6)
 	l_center  = (1*prev_frame.shape[0]/6, 3*prev_frame.shape[1]/6)
+
+	#print all frame flow
+	# print "9 section flow"
+	# print frame_flow[0][0]
+	# print frame_flow[0][1]
+	# print frame_flow[0][2]
+	# print frame_flow[1][0]
+	# print frame_flow[1][1]
+	# print frame_flow[1][2]
+	# print frame_flow[2][0]
+	# print frame_flow[2][1]
+	# print frame_flow[2][2]
 
 	# look at all values and take the cross product with a vector to the center
 	tl = np.cross(tl_center, frame_flow[0][0])
@@ -124,11 +141,19 @@ while True:
 	# grab the dimensions of the image and calculate the center
 	# of the image
 	(h, w) = swatch.shape[:2]
-	center = (w / 2, h / 2)
-	 
-	# rotate the image by 180 degrees
-	M = cv2.getRotationMatrix2D(center, i, 1.0)
-	swatch_rotated = cv2.warpAffine(swatch, M, (w, h))
+	
+	rot_bg = np.zeros((int(h*1.5),int(w*1.5),3), np.uint8)
+	# for i in range(0,100):
+	# 	for j in range(0,100):
+	# 		rot_bg[i][j] = (255,0,0)
+
+	rot_bg[rot_bg.shape[0]/2-h/2:rot_bg.shape[0]/2+h/2, rot_bg.shape[1]/2-w/2:rot_bg.shape[1]/2+w/2] = swatch
+	center = (rot_bg.shape[0] / 2, rot_bg.shape[1] / 2)
+
+	# rotate the image by n degrees
+	angle = i
+	M = cv2.getRotationMatrix2D(center, angle, 1.0)
+	swatch_rotated = cv2.warpAffine(rot_bg, M, (rot_bg.shape[0], rot_bg.shape[1]))
 
 	# replace a portion of the array with the swatch
 	y_pos = background_height/2 - swatch_rotated.shape[0]/2
