@@ -47,6 +47,7 @@ parser.add_argument('--numGens', type=int, default=20000)
 parser.add_argument('--backgroundType', type=int, default=0)
 parser.add_argument('--random', type=int, default=64)
 parser.add_argument('--numPics', type=int, default=1000)
+parser.add_argument('--simple', type=bool, default=True)
 args = parser.parse_args()
 
 # a switch... 0 for Translational, 1 for zoom, 2 for rotation
@@ -239,6 +240,47 @@ def getAverageOpticalFlow(prev_frame, next_frame):
     flow_vector = [xFlowAvg, yFlowAvg]
     return flow_vector
 
+# this function splits up images into 4 subimages to determine optical flow on
+# after determining optical flow, of the 4 images, it computes a value of zoom
+# based on the opposing vectors
+def getZoomOpticalFlowSimple(prev_frame, next_frame):
+    # store flow for each frame
+    frame_flow = [[0,0],[0,0]]
+
+    # scale the optic flow to show up...
+    flowscale = 100
+
+    # split into 9 frames
+    for i in range(0,2):
+        for j in range(0,2):
+            left = j*prev_frame.shape[0]/2
+            right = (j+1)*prev_frame.shape[0]/2
+            top = i*prev_frame.shape[1]/2
+            bottom = (i+1)*prev_frame.shape[1]/2
+
+            sub_prev_frame = prev_frame[left:right, top:bottom]
+            sub_next_frame = next_frame[left:right, top:bottom]
+
+            #check optical flow for subframe
+            frame_flow[i][j] = getAverageOpticalFlow(sub_prev_frame, sub_next_frame)
+            
+            midpoint = ((2*j+1)*prev_frame.shape[1]/4, (2*i+1)*prev_frame.shape[0]/4)
+            flowpoint = (midpoint[0] + int(frame_flow[i][j][0]*flowscale), midpoint[1] + int(frame_flow[i][j][1]*flowscale))
+
+    # create vectors to the center point from the center of the 9 frames
+    tl_center = (1*prev_frame.shape[0]/4, 1*prev_frame.shape[1]/4)
+    tr_center = (3*prev_frame.shape[0]/4, 1*prev_frame.shape[1]/4)
+    br_center = (3*prev_frame.shape[0]/4, 3*prev_frame.shape[1]/4)
+    bl_center = (1*prev_frame.shape[0]/4, 3*prev_frame.shape[1]/4)
+
+    # look at all values and take the dot product with a vector to the center
+    tl = np.dot(tl_center, frame_flow[0][0])
+    tr = np.dot(tr_center, frame_flow[0][1])
+    br = np.dot(br_center, frame_flow[1][1])
+    bl = np.dot(bl_center, frame_flow[1][0])
+
+    return tl + tr + br + bl # sum all of the divergence
+
 # this function splits up images into 9 subimages to determine optical flow on
 # after determining optical flow, of the 9 images, it computes a value of zoom
 # based on the opposing vectors
@@ -288,6 +330,7 @@ def getZoomOpticalFlow(prev_frame, next_frame):
     l  = np.dot(l_center,  frame_flow[1][0])
 
     return tl + r + tr + r + br + b + bl + l # summ all of the divergence
+
 
 def calculatedZoomAvg(individual):
     center = [background.shape[0]/2, background.shape[1]/2]
@@ -346,7 +389,10 @@ def calculatedZoomAvg(individual):
     prv = cv2.cvtColor(prev_im_rep, cv2.COLOR_BGR2GRAY)
     nxt = cv2.cvtColor(im_rep, cv2.COLOR_BGR2GRAY) 
 
-    zoom_val = getZoomOpticalFlow(prv, nxt)
+    if(args.simple):
+        zoom_val = getZoomOpticalFlowSimple(prv, nxt)
+    else:
+        zoom_val = getZoomOpticalFlow(prv, nxt)
     return zoom_val
 
 # this function splits up images into 9 subimages to determine optical flow on
@@ -509,8 +555,10 @@ def calculatedRotAvg(individual):
     # calculate optical flow
     flow = cv2.calcOpticalFlowFarneback(prv, nxt, 0.5, 4, 8, 2, 7, 1.5, cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
 
-    rot_val = getRotationalOpticalFlowSimple(prv, nxt)  # simplified to 4 grid
-
+    if(args.simple):
+        rot_val = getRotationalOpticalFlowSimple(prv, nxt)  # simplified to 4 grid
+    else:
+        rot_val = getRotationalOpticalFlow(prv, nxt)  # simplified to 4 grid
 
     return rot_val
 
