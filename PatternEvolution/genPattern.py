@@ -34,13 +34,14 @@ import argparse
 # options parser to set all of these variables from the command line
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--mode', type=int, default=0)
-parser.add_argument('--swatchSize', default=9)
-parser.add_argument('--backgroundWidth', default=30)
-parser.add_argument('--backgroundHeight', default=30)
-parser.add_argument('--popSize', default=10)
-parser.add_argument('--numGens', default=20000)
-parser.add_argument('--backgroundType', default=0)
-parser.add_argument('--random', default=64)
+parser.add_argument('--swatchSize', type=int, default=9)
+parser.add_argument('--backgroundWidth', type=int, default=30)
+parser.add_argument('--backgroundHeight', type=int, default=30)
+parser.add_argument('--popSize', type=int, default=10)
+parser.add_argument('--numGens', type=int, default=20000)
+parser.add_argument('--backgroundType', type=int, default=0)
+parser.add_argument('--random', type=int, default=64)
+parser.add_argument('--numPics', type=int, default=1000)
 args = parser.parse_args()
 
 # a switch... 0 for Translational, 1 for zoom, 2 for rotation
@@ -62,24 +63,27 @@ random.seed(seed)
 
 
 # x dimension of OF: -1 for min, 1 for max
-X_FUN = 1.0 
+X_FUN = -1.0 
 
 # for binary representations of Black and White (0,0,0) and (255,255,255)
 BLACK = 0
 WHITE = 255
 
-DELTA = 1               # num pixels translated
+DELTA = 1                                   # num pixels translated
 
-NUM_PIX = 10000          # 1 in 1000 individuals saved. 
+NUM_PIX = args.numPics                      # 1 in 1000 individuals saved. 
 
-ts = time.time()        # create unique image directory
-val = 0                 # hack to keep track of generation number
+ts = time.time()                            # create unique image directory
+val = 0                                     # hack to keep track of generation number
+
+os.makedirs('./Images/' + str(ts)[0:10] )   # save to new directory
+f = open('./Images/' + str(ts)[0:10] + '/parameters.txt', 'w')
 
 # OF of a white swatch moving on a black background 
 # BASELINE = calculateBaselineTranslationalAvg();
 BASELINE = 0
 
-# 0 for all black, 1 for striped, 2 for random
+# 0 for all black, 2 for striped, 1 for random, 3 for traffic crossing
 chooseBackground = args.backgroundType
 
 # For each pixel, with probability indpb flip a coin to assign a value
@@ -136,6 +140,8 @@ elif (chooseBackground == 2):
     background = genStripedImage(background_height, background_width)
 else:
     background = cv2.imread('traffic_bw.jpg')
+    background_width = 320
+    background_height = 240
 
 # attribute generation
 # to generate the first individual, called SWATCH_NUM_PIXELS_WIDTH * SWATCH_NUM_PIXELS_HEIGHT times
@@ -211,31 +217,6 @@ def calculatedTranslationalAvg_refactored(individual):
         total = cv2.sumElems(flow)
         xFlowTotal += total[0] / (background.shape[0]*background.shape[1])
         yFlowTotal += total[1] / (background.shape[0]*background.shape[1])
-
-    # hack to see which generation we're on. val is set to 0 as start up, 
-    global val 
-    val = val + 1
-    # when val is first incremented, we create a directory. 
-    if (val == 1):
-        os.makedirs('./Images/' + str(ts)[0:10] )
-        f = open('./Images/' + str(ts)[0:10] + '/parameters.txt', 'w')
-        f.write("Mode (0 trans, 1 zoom, 2 rotate): " + str(option) + '\n')
-        f.write("Swatch Size:" + str(SWATCH_NUM_PIXELS_HEIGHT) + 'by' + str(SWATCH_NUM_PIXELS_WIDTH) + '\n')
-        f.write("Background Size:" + str(background_height) + 'by' + str(background_width) + '\n')
-        f.write("Background Type (0 black, 1 striped, 2 random):" + str(chooseBackground) + '\n')
-        f.write("Popsize:" + str(POPSIZE) + '\n')
-        f.write("Number of generations:" + str(NUM_GENS) + '\n')
-        f.write("Min or max:" + str(X_FUN) + '\n')
-        f.write("Random seed:" + str(seed) + '\n')
-        f.write("y_cood of motion:" + str(background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2))
-        f.write("x_cood of motion (range):" + str(0) + "-" + str(background_width - SWATCH_NUM_PIXELS_WIDTH))
-
-
-        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_trans_BACKGROUND.png', background)
-
-    # for every NUM_PIX image generated from then on, we save that image 
-    if (val % NUM_PIX == 0):
-        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_trans_' + str(val) + '.png', swatch)
 
     # return tuple of average OF 
     return (xFlowTotal/trials, yFlowTotal/trials)
@@ -317,28 +298,6 @@ def calculatedZoomAvg(individual):
 
     #imshow(prev_im_rep)
     #show()  
-
-    # hack to keep track of generation + picture number
-    global val 
-    val = val + 1
-    # first time running code, create directory
-    if (val == 1):
-        os.makedirs('./Images/' + str(ts)[0:10] )
-        f = open('./Images/' + str(ts)[0:10] + '/parameters.txt', 'w')
-        f.write("Mode (0 trans, 1 zoom, 2 rotate): " + str(option) + '\n')
-        f.write("Swatch Size:" + str(SWATCH_NUM_PIXELS_HEIGHT) + 'by' + str(SWATCH_NUM_PIXELS_WIDTH) + '\n')
-        f.write("Background Size:" + str(background_height) + 'by' + str(background_width) + '\n')
-        f.write("Background Type (0 black, 1 striped, 2 random):" + str(chooseBackground) + '\n')
-        f.write("Popsize:" + str(POPSIZE) + '\n')
-        f.write("Number of generations:" + str(NUM_GENS) + '\n')
-        f.write("Min or max:" + str(X_FUN) + '\n')
-        f.write("Random seed:" + str(seed) + '\n')
-
-        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_zoom_BACKGROUND.png', background)
-
-    # print NUM_PIXth Swatch
-    if (val % NUM_PIX == 0):
-        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_zoom_' + str(val) + '.png', swatch)
 
     # ZOOM
     #----------------------------------------------------------------------
@@ -492,28 +451,6 @@ def calculatedRotAvg(individual):
 
     # calculate optical flow
     flow = cv2.calcOpticalFlowFarneback(prv, nxt, 0.5, 4, 8, 2, 7, 1.5, cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
-    
-    # hack to keep track of generation + picture number
-    global val 
-    val = val + 1
-    # first time running code, create directory
-    if (val == 1):
-        os.makedirs('./Images/' + str(ts)[0:10] )
-        f = open('./Images/' + str(ts)[0:10] + '/parameters.txt', 'w')
-        f.write("Mode (0 trans, 1 zoom, 2 rotate): " + str(option) + '\n')
-        f.write("Swatch Size:" + str(SWATCH_NUM_PIXELS_HEIGHT) + 'by' + str(SWATCH_NUM_PIXELS_WIDTH) + '\n')
-        f.write("Background Size:" + str(background_height) + 'by' + str(background_width) + '\n')
-        f.write("Background Type (0 black, 1 striped, 2 random):" + str(chooseBackground) + '\n')
-        f.write("Popsize:" + str(POPSIZE) + '\n')
-        f.write("Number of generations:" + str(NUM_GENS) + '\n')
-        f.write("Min or max:" + str(X_FUN) + '\n')
-        f.write("Random seed:" + str(seed) + '\n')
-
-        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_zoom_BACKGROUND.png', background)
-
-    # print NUM_PIXth Swatch
-    if (val % NUM_PIX == 0):
-        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_zoom_' + str(val) + '.png', swatch)
 
     zoom_val = getRotationalOpticalFlow(prv, nxt)
 
@@ -523,12 +460,45 @@ def calculatedRotAvg(individual):
 # Returns the computed OF value for fitness calculations
 # depending on which 'option' is set 
 def evalMax(individual):
+    swatch = numpy.empty((SWATCH_NUM_PIXELS_HEIGHT,SWATCH_NUM_PIXELS_WIDTH,3), numpy.uint8)
+    
+    for i in range(0, SWATCH_NUM_PIXELS_HEIGHT):
+        for j in range (0, SWATCH_NUM_PIXELS_WIDTH):
+            swatch[i][j] = numpy.array([individual[SWATCH_NUM_PIXELS_HEIGHT * i + j],individual[SWATCH_NUM_PIXELS_HEIGHT * i + j], individual[SWATCH_NUM_PIXELS_HEIGHT * i + j]])
+
+    # hack to see which generation we're on. val is set to 0 as start up, 
+    global val 
+    global f
+    # when val is first incremented, we create a directory. 
+    if (val == 0):
+        f.write("Mode (0 trans, 1 zoom, 2 rotate): " + str(option) + '\n')
+        f.write("Swatch Size:" + str(SWATCH_NUM_PIXELS_HEIGHT) + 'by' + str(SWATCH_NUM_PIXELS_WIDTH) + '\n')
+        f.write("Background Size:" + str(background_height) + 'by' + str(background_width) + '\n')
+        f.write("Background Type (0 black, 1 striped, 2 random):" + str(chooseBackground) + '\n')
+        f.write("Popsize:" + str(POPSIZE) + '\n')
+        f.write("Number of generations:" + str(NUM_GENS) + '\n')
+        f.write("Min or max:" + str(X_FUN) + '\n')
+        f.write("Random seed:" + str(seed) + '\n')
+        f.write("y_cood of motion:" + str(background_height/2 - SWATCH_NUM_PIXELS_HEIGHT/2) + '\n')
+        f.write("x_cood of motion (range):" + str(0) + "-" + str(background_width - SWATCH_NUM_PIXELS_WIDTH) + '\n')
+
+
+        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_trans_BACKGROUND.png', background)
+
     if (option == 0):
         (h,w) = calculatedTranslationalAvg_refactored(individual)
     elif (option == 1):
         h = calculatedZoomAvg(individual)
     else:
         h = calculatedRotAvg(individual)
+
+    # for every NUM_PIX image generated from then on, we save that image 
+    if (val % NUM_PIX == 0):
+        cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_trans_' + str(val) + '.png', swatch)
+        f.write(str(val) + ', ' + str(h) + '\n')
+
+    val = val + 1
+
     return h,
 
 # cross over function -- provided by DEAP
@@ -595,6 +565,8 @@ def main():
                 10:SWATCH_NUM_PIXELS_WIDTH+10] = PIC_new
 
         #save
+        x = evalMax(hof[0])
+        f.write('FINAL, ' + str(x[0]) + '\n')
         cv2.imwrite('./Images/' + str(ts)[0:10]  + '/pic_FINAL.png', PIC_new)
         
     return pop, stats, hof
