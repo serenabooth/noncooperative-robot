@@ -143,9 +143,9 @@ while True:
 	(h, w) = swatch.shape[:2]
 	
 	rot_bg = np.zeros((int(h*1.5),int(w*1.5),3), np.uint8)
-	# for i in range(0,100):
-	# 	for j in range(0,100):
-	# 		rot_bg[i][j] = (255,0,0)
+	for c in range(0,rot_bg.shape[0]):
+		for r in range(0,rot_bg.shape[1]):
+			rot_bg[c][r] = (255,0,0)
 
 	rot_bg[rot_bg.shape[0]/2-h/2:rot_bg.shape[0]/2+h/2, rot_bg.shape[1]/2-w/2:rot_bg.shape[1]/2+w/2] = swatch
 	center = (rot_bg.shape[0] / 2, rot_bg.shape[1] / 2)
