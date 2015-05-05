@@ -143,9 +143,9 @@ while True:
 	(h, w) = swatch.shape[:2]
 	
 	rot_bg = np.zeros((int(h*1.5),int(w*1.5),3), np.uint8)
-	for c in range(0,rot_bg.shape[0]):
-		for r in range(0,rot_bg.shape[1]):
-			rot_bg[c][r] = (255,0,0)
+	for row in range(0,rot_bg.shape[0]):
+		for col in range(0,rot_bg.shape[1]):
+			rot_bg[row][col] = (155,0,0)
 
 	rot_bg[rot_bg.shape[0]/2-h/2:rot_bg.shape[0]/2+h/2, rot_bg.shape[1]/2-w/2:rot_bg.shape[1]/2+w/2] = swatch
 	center = (rot_bg.shape[0] / 2, rot_bg.shape[1] / 2)
@@ -158,8 +158,15 @@ while True:
 	# replace a portion of the array with the swatch
 	y_pos = background_height/2 - swatch_rotated.shape[0]/2
 	x_pos = background_width/2 - swatch_rotated.shape[1]/2
-	im_rep[y_pos:y_pos+swatch_rotated.shape[1], x_pos:x_pos + swatch_rotated.shape[0]] = swatch_rotated
-	
+	#im_rep[y_pos:y_pos+swatch_rotated.shape[1], x_pos:x_pos + swatch_rotated.shape[0]] = swatch_rotated
+	# iterate through the swatch an only add the black and white pixels to the background
+	for row in range(0, swatch_rotated.shape[0]):
+		for col in range(0, swatch_rotated.shape[1]):
+			if(swatch_rotated[row][col][0] == 0 or swatch_rotated[row][col][0] == 255):
+				# if pixel is white or black, add this pixel (a simple bluescreen effect)
+				im_rep[y_pos+row, x_pos+col] = swatch_rotated[row][col]
+
+
 	# move the image i pixels to the right
 	i = i + 10
 	if i >= 360:
