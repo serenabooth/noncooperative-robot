@@ -3,6 +3,9 @@ import numpy as np
 import cv2
 import random
 from pylab import imshow, show
+import PIL
+from PIL import Image
+import math
 
 swatch_width = 150
 swatch_height = 150
@@ -21,12 +24,17 @@ full_rep = np.zeros((background_height,background_width*2,3), np.uint8)
 
 # create image background
 background = np.zeros((background_height,background_width,3), np.uint8)
+black = np.zeros((background_height,background_width,3), np.uint8)
 
 # create white swatch
 swatch = np.empty((swatch_width,swatch_width,3), np.uint8)
 for i in range(0,swatch_height):
 	for j in range(0,swatch_width):
-		swatch[i][j] = (255,255,255)
+		if(i == swatch_width/2 and j == swatch_height/2):	#show the center (my math must be off for the translation with the rotation, helps visualize)
+			swatch[i][j] = (0,0,0)
+		else:
+			swatch[i][j] = (255,255,255)
+
 
 # # create spotted swatch
 # for i in range(0,swatch_height):
@@ -36,10 +44,15 @@ for i in range(0,swatch_height):
 # 		else:
 # 			swatch[i][j] = (0,0,0)
 
-# create black background
+# create spotted background
 for i in range(0,background_height):
 	for j in range(0,background_width):
-		prev_im_rep[i][j] = (0,0,0)
+		if(i%3 == 0 and j%3 == 0):
+			background[i][j] = (255,255,255)
+		else:
+			background[i][j] = (0,0,0)
+
+		# prev_im_rep[i][j] = (0,0,0)
 
 # this function returns the average value of the optical flow
 def getAverageOpticalFlow(prev_frame, next_frame):
@@ -135,37 +148,21 @@ while True:
 
 	# initialize the image to black
 	im_rep = background.copy()
-	flow_rep = background.copy()
+	flow_rep = black.copy()
 
 	# rotate the swatch
-	# grab the dimensions of the image and calculate the center
-	# of the image
-	(h, w) = swatch.shape[:2]
-	
-	rot_bg = np.zeros((int(h*1.5),int(w*1.5),3), np.uint8)
-	for row in range(0,rot_bg.shape[0]):
-		for col in range(0,rot_bg.shape[1]):
-			rot_bg[row][col] = (155,0,0)
-
-	rot_bg[rot_bg.shape[0]/2-h/2:rot_bg.shape[0]/2+h/2, rot_bg.shape[1]/2-w/2:rot_bg.shape[1]/2+w/2] = swatch
-	center = (rot_bg.shape[0] / 2, rot_bg.shape[1] / 2)
-
 	# rotate the image by n degrees
 	angle = i
-	M = cv2.getRotationMatrix2D(center, angle, 1.0)
-	swatch_rotated = cv2.warpAffine(rot_bg, M, (rot_bg.shape[0], rot_bg.shape[1]))
-
-	# replace a portion of the array with the swatch
-	y_pos = background_height/2 - swatch_rotated.shape[0]/2
-	x_pos = background_width/2 - swatch_rotated.shape[1]/2
-	#im_rep[y_pos:y_pos+swatch_rotated.shape[1], x_pos:x_pos + swatch_rotated.shape[0]] = swatch_rotated
-	# iterate through the swatch an only add the black and white pixels to the background
-	for row in range(0, swatch_rotated.shape[0]):
-		for col in range(0, swatch_rotated.shape[1]):
-			if(swatch_rotated[row][col][0] == 0 or swatch_rotated[row][col][0] == 255):
-				# if pixel is white or black, add this pixel (a simple bluescreen effect)
-				im_rep[y_pos+row, x_pos+col] = swatch_rotated[row][col]
-
+	left = int(im_rep.shape[1]/2 - (swatch.shape[1]/2) - (swatch.shape[1]/4)* math.sin(math.pi*(((angle*2)%180)/180.0)))
+	top = int(im_rep.shape[0]/2 - (swatch.shape[0]/2) - (swatch.shape[0]/4)* math.sin(math.pi*(((angle*2)%180)/180.0)))
+	src_im = im = Image.fromarray(swatch)
+	dst_im = Image.fromarray(background)
+	im = src_im.convert('RGBA')
+	rot = im.rotate( angle, expand=2, resample=PIL.Image.BICUBIC) # NEAREST, BILINEAR, BICUBIC
+	dst_im.paste( rot, (left, top), rot )
+	dst_im_rgb = dst_im.convert('RGB')
+	# dst_im_rgb.show()
+	im_rep = np.asarray(dst_im_rgb)
 
 	# move the image i pixels to the right
 	i = i + 10
