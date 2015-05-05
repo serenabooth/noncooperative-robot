@@ -407,6 +407,54 @@ def getRotationalOpticalFlow(prev_frame, next_frame):
 
     return tl + t + tr + r + br + b + bl + l
 
+# this function splits up images into 4 subimages to determine optical flow on
+# after determining optical flow, of the 4 images, it computes a value of zoom
+# based on the opposing vectors
+def getRotationalOpticalFlowSimple(prev_frame, next_frame):
+
+    flow_rep = background.copy()
+    
+    # store flow for each frame
+    frame_flow = [[0,0],[0,0]]
+
+    # scale the optic flow to show up...
+    flowscale = 10
+
+    # split into 4 frames
+    for i in range(0,2):
+        for j in range(0,2):
+            left = j*prev_frame.shape[0]/2
+            right = (j+1)*prev_frame.shape[0]/2
+            top = i*prev_frame.shape[1]/2
+            bottom = (i+1)*prev_frame.shape[1]/2
+
+            sub_prev_frame = prev_frame[left:right, top:bottom]
+            sub_next_frame = next_frame[left:right, top:bottom]
+
+            #check optical flow for subframe
+            frame_flow[i][j] = getAverageOpticalFlow(sub_prev_frame, sub_next_frame)
+            
+            midpoint = ((2*j+1)*prev_frame.shape[1]/4, (2*i+1)*prev_frame.shape[0]/4, )
+            flowpoint = (midpoint[0] + int(frame_flow[i][j][0]*flowscale), midpoint[1] + int(frame_flow[i][j][1]*flowscale))
+
+            #draw the flow to our visualizer
+            cv2.line(flow_rep, midpoint, flowpoint, (0,255,0),1)
+
+    # create vectors to the center point from the center of the 9 frames
+    tl_center = (1*prev_frame.shape[0]/4, 1*prev_frame.shape[1]/4)
+    tr_center = (3*prev_frame.shape[0]/4, 1*prev_frame.shape[1]/4)
+    br_center = (3*prev_frame.shape[0]/4, 3*prev_frame.shape[1]/4)
+    bl_center = (1*prev_frame.shape[0]/4, 3*prev_frame.shape[1]/4)
+
+    # look at all values and take the cross product with a vector to the center
+    tl = np.cross(tl_center, frame_flow[0][0])
+    tr = np.cross(tr_center, frame_flow[0][1])
+    br = np.cross(br_center, frame_flow[1][1])
+    bl = np.cross(bl_center, frame_flow[1][0])
+
+    return tl + tr + br + bl
+
+
 # TO-DO 
 def calculatedRotAvg(individual):
     im_rep = background.copy()
@@ -461,7 +509,7 @@ def calculatedRotAvg(individual):
     # calculate optical flow
     flow = cv2.calcOpticalFlowFarneback(prv, nxt, 0.5, 4, 8, 2, 7, 1.5, cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
 
-    rot_val = getRotationalOpticalFlow(prv, nxt)
+    rot_val = getRotationalOpticalFlowSimple(prv, nxt)  # simplified to 4 grid
 
 
     return rot_val
