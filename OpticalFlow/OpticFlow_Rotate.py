@@ -13,6 +13,8 @@ swatch_height = 150
 background_width = 320
 background_height = 240
 
+shift = (math.sqrt(2) - 1.0)/2.0
+
 midpoint = (int(background_width/2), int(background_height/2))
 
 # create image representation
@@ -30,7 +32,7 @@ black = np.zeros((background_height,background_width,3), np.uint8)
 swatch = np.empty((swatch_width,swatch_width,3), np.uint8)
 for i in range(0,swatch_height):
 	for j in range(0,swatch_width):
-		if(i == swatch_width/2 and j == swatch_height/2):	#show the center (my math must be off for the translation with the rotation, helps visualize)
+		if(i == swatch_width/2 and j == swatch_height/2):	#show the center 
 			swatch[i][j] = (0,0,0)
 		else:
 			swatch[i][j] = (255,255,255)
@@ -153,8 +155,8 @@ while True:
 	# rotate the swatch
 	# rotate the image by n degrees
 	angle = i
-	left = int(im_rep.shape[1]/2 - (swatch.shape[1]/2) - (swatch.shape[1]/4)* math.sin(math.pi*(((angle*2)%180)/180.0)))
-	top = int(im_rep.shape[0]/2 - (swatch.shape[0]/2) - (swatch.shape[0]/4)* math.sin(math.pi*(((angle*2)%180)/180.0)))
+	left = int(im_rep.shape[1]/2 - (swatch.shape[1]/2) - (shift * swatch.shape[1]) * math.cos(math.pi*(((angle*2)%180-90)/180.0)))
+	top = int(im_rep.shape[0]/2 - (swatch.shape[0]/2) - (shift * swatch.shape[0]) * math.sin(math.pi*(((angle*2)%180)/180.0)))
 	src_im = im = Image.fromarray(swatch)
 	dst_im = Image.fromarray(background)
 	im = src_im.convert('RGBA')
@@ -165,7 +167,7 @@ while True:
 	im_rep = np.asarray(dst_im_rgb)
 
 	# move the image i pixels to the right
-	i = i + 10
+	i = i + 5
 	if i >= 360:
 		i = 0
 
