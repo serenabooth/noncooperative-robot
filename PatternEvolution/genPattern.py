@@ -31,6 +31,11 @@ from _functools import partial
 
 import argparse
 
+# for image rotation
+import PIL
+from PIL import Image
+import math
+
 # options parser to set all of these variables from the command line
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--mode', type=int, default=0)
@@ -413,22 +418,23 @@ def calculatedRotAvg(individual):
         for j in range (0, SWATCH_NUM_PIXELS_WIDTH):
             swatch[i][j] = numpy.array([individual[SWATCH_NUM_PIXELS_HEIGHT * i + j],individual[SWATCH_NUM_PIXELS_HEIGHT * i + j], individual[SWATCH_NUM_PIXELS_HEIGHT * i + j]])
 
-    # rotate the swatch
-    # grab the dimensions of the image and calculate the center
-    # of the image
-    (h, w) = swatch.shape[:2]
-    center = (w / 2, h / 2)
-
     i = 0; 
 
-    # rotate the image by 180 degrees
-    M = cv2.getRotationMatrix2D(center, i, 1.0)
-    swatch_rotated = cv2.warpAffine(swatch, M, (w, h))
+    # max shift value for offset during rotation
+    shift = (math.sqrt(2) - 1.0)/2.0
 
-    # replace a portion of the array with the swatch
-    y_pos = background_height/2 - swatch_rotated.shape[0]/2
-    x_pos = background_width/2 - swatch_rotated.shape[1]/2
-    prev_im_rep[y_pos:y_pos+swatch_rotated.shape[1], x_pos:x_pos + swatch_rotated.shape[0]] = swatch_rotated
+    # rotate the swatch
+    angle = i
+    left = int(im_rep.shape[1]/2 - (swatch.shape[1]/2) - (shift * swatch.shape[1]) * math.cos(math.pi*(((angle*2)%180-90)/180.0)))
+    top = int(im_rep.shape[0]/2 - (swatch.shape[0]/2) - (shift * swatch.shape[0]) * math.sin(math.pi*(((angle*2)%180)/180.0)))
+    src_im = im = Image.fromarray(swatch)
+    dst_im = Image.fromarray(background)
+    im = src_im.convert('RGBA')
+    rot = im.rotate( angle, expand=2, resample=PIL.Image.BICUBIC) # NEAREST, BILINEAR, BICUBIC
+    dst_im.paste( rot, (left, top), rot )
+    dst_im_rgb = dst_im.convert('RGB')
+    prev_im_rep = np.asarray(dst_im_rgb)
+
     
     # move the image i pixels to the right
     # TEMP: do this only once! 
@@ -436,14 +442,17 @@ def calculatedRotAvg(individual):
     #if i >= 360:
     #    i = 0
 
-    # rotate the image by 180 degrees
-    M = cv2.getRotationMatrix2D(center, i, 1.0)
-    swatch_rotated = cv2.warpAffine(swatch, M, (w, h))
-
-    # replace a portion of the array with the swatch
-    y_pos = background_height/2 - swatch_rotated.shape[0]/2
-    x_pos = background_width/2 - swatch_rotated.shape[1]/2
-    im_rep[y_pos:y_pos+swatch_rotated.shape[1], x_pos:x_pos + swatch_rotated.shape[0]] = swatch_rotated
+    # rotate the swatch
+    angle = i
+    left = int(im_rep.shape[1]/2 - (swatch.shape[1]/2) - (shift * swatch.shape[1]) * math.cos(math.pi*(((angle*2)%180-90)/180.0)))
+    top = int(im_rep.shape[0]/2 - (swatch.shape[0]/2) - (shift * swatch.shape[0]) * math.sin(math.pi*(((angle*2)%180)/180.0)))
+    src_im = im = Image.fromarray(swatch)
+    dst_im = Image.fromarray(background)
+    im = src_im.convert('RGBA')
+    rot = im.rotate( angle, expand=2, resample=PIL.Image.BICUBIC) # NEAREST, BILINEAR, BICUBIC
+    dst_im.paste( rot, (left, top), rot )
+    dst_im_rgb = dst_im.convert('RGB')
+    im_rep = np.asarray(dst_im_rgb)
     
     # make CV happy with grayscale images for previous and next frames
     prv = cv2.cvtColor(prev_im_rep, cv2.COLOR_BGR2GRAY)
@@ -452,10 +461,10 @@ def calculatedRotAvg(individual):
     # calculate optical flow
     flow = cv2.calcOpticalFlowFarneback(prv, nxt, 0.5, 4, 8, 2, 7, 1.5, cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
 
-    zoom_val = getRotationalOpticalFlow(prv, nxt)
+    rot_val = getRotationalOpticalFlow(prv, nxt)
 
 
-    return zoom_val
+    return rot_val
 
 # Returns the computed OF value for fitness calculations
 # depending on which 'option' is set 
