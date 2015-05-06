@@ -48,6 +48,7 @@ parser.add_argument('--backgroundType', type=int, default=0)
 parser.add_argument('--random', type=int, default=64)
 parser.add_argument('--numPics', type=int, default=1000)
 parser.add_argument('--simple', type=bool, default=True)
+parser.add_argument('--isMin', type=bool, default=True)
 args = parser.parse_args()
 
 # a switch... 0 for Translational, 1 for zoom, 2 for rotation
@@ -69,7 +70,10 @@ random.seed(seed)
 
 
 # x dimension of OF: -1 for min, 1 for max
-X_FUN = -1.0 
+if(args.isMin):
+    X_FUN = -1.0
+else:
+    X_FUN = 1.0
 
 # for binary representations of Black and White (0,0,0) and (255,255,255)
 BLACK = 0
